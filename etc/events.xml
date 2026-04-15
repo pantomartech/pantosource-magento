@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="controller_action_postdispatch">
+        <observer name="pantosource_pageview" instance="Panto\Source\Observer\PageViewObserver"/>
+    </event>
+    <event name="controller_action_postdispatch_catalog_product_view">
+        <observer name="pantosource_product_view" instance="Panto\Source\Observer\ProductViewObserver"/>
+    </event>
+    <event name="controller_action_postdispatch_catalog_category_view">
+        <observer name="pantosource_category_view" instance="Panto\Source\Observer\CategoryViewObserver"/>
+    </event>
+    <event name="controller_action_postdispatch_catalogsearch_result_index">
+        <observer name="pantosource_search" instance="Panto\Source\Observer\SearchObserver"/>
+    </event>
+    <event name="checkout_cart_add_product_complete">
+        <observer name="pantosource_cart_add" instance="Panto\Source\Observer\CartAddObserver"/>
+    </event>
+    <event name="sales_quote_remove_item">
+        <observer name="pantosource_cart_remove" instance="Panto\Source\Observer\CartRemoveObserver"/>
+    </event>
+    <event name="checkout_cart_update_items_after">
+        <observer name="pantosource_cart_update" instance="Panto\Source\Observer\CartUpdateObserver"/>
+    </event>
+    <event name="controller_action_predispatch_checkout_index_index">
+        <observer name="pantosource_checkout_init" instance="Panto\Source\Observer\CheckoutInitObserver"/>
+    </event>
+    <event name="checkout_submit_all_after">
+        <observer name="pantosource_checkout_submit" instance="Panto\Source\Observer\CheckoutSubmitObserver"/>
+    </event>
+    <event name="checkout_onepage_controller_success_action">
+        <observer name="pantosource_checkout_success" instance="Panto\Source\Observer\CheckoutSuccessObserver"/>
+    </event>
+    <event name="sales_order_shipment_save_after">
+        <observer name="pantosource_shipment" instance="Panto\Source\Observer\ShipmentSaveObserver"/>
+    </event>
+    <event name="customer_register_success">
+        <observer name="pantosource_customer_register" instance="Panto\Source\Observer\CustomerRegisterObserver"/>
+    </event>
+    <event name="customer_login">
+        <observer name="pantosource_customer_login" instance="Panto\Source\Observer\CustomerLoginObserver"/>
+    </event>
+    <event name="customer_logout">
+        <observer name="pantosource_customer_logout" instance="Panto\Source\Observer\CustomerLogoutObserver"/>
+    </event>
+</config>

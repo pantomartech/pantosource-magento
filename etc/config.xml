@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <pantosource>
+            <general>
+                <enabled>1</enabled>
+            </general>
+            <ingestion>
+                <base_url/>
+            </ingestion>
+            <tracking>
+                <frontend_tracker>1</frontend_tracker>
+                <attribution>1</attribution>
+                <hashed_pii>0</hashed_pii>
+                <debug_mode>0</debug_mode>
+                <consent_mode>none</consent_mode>
+            </tracking>
+        </pantosource>
+    </default>
+</config>

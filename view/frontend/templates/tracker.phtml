@@ -1,0 +1,11 @@
+<?php
+/** @var \Panto\Source\Block\Tracker $block */
+$config = $block->getConfigJson();
+?>
+<script type="text/x-magento-init">
+{
+    "*": {
+        "Panto_Source/js/tracker": <?= /* @noEscape */ $config ?>
+    }
+}
+</script>

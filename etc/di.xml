@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="Panto\Source\Api\ConfigInterface" type="Panto\Source\Model\Config"/>
+    <type name="Magento\Customer\Api\CustomerRepositoryInterface">
+        <plugin name="pantosource_customer_repository_delete" type="Panto\Source\Plugin\CustomerRepositoryDeletePlugin" sortOrder="100"/>
+    </type>
+</config>

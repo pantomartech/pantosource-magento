@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="Panto_Source::main"
+             title="PantoSource"
+             module="Panto_Source"
+             sortOrder="100"
+             resource="Panto_Source::main"/>
+        <add id="Panto_Source::ops"
+             title="Operations"
+             module="Panto_Source"
+             sortOrder="15"
+             parent="Panto_Source::main"
+             action="pantosource/ops/index"
+             resource="Panto_Source::ops"/>
+        <add id="Panto_Source::debug"
+             title="Debug View"
+             module="Panto_Source"
+             sortOrder="20"
+             parent="Panto_Source::main"
+             action="pantosource/debug/index"
+             resource="Panto_Source::debug"/>
+    </menu>
+</config>

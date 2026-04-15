@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/db_schema.xsd">
+    <table name="pantosource_queue" resource="default" engine="innodb" comment="PantoSource outbound retry queue">
+        <column xsi:type="int" name="entity_id" unsigned="true" nullable="false" identity="true" comment="Entity ID"/>
+        <column xsi:type="varchar" name="public_id" nullable="false" length="32" comment="Queue row public id"/>
+        <column xsi:type="varchar" name="event_id" nullable="true" length="64" comment="Client event UUID"/>
+        <column xsi:type="mediumtext" name="payload" nullable="false" comment="JSON payload"/>
+        <column xsi:type="smallint" name="attempts" unsigned="true" nullable="false" default="0" comment="Send attempts"/>
+        <column xsi:type="int" name="next_attempt_at" unsigned="true" nullable="false" default="0" comment="Unix time next try"/>
+        <column xsi:type="text" name="last_error" nullable="true" comment="Last error message"/>
+        <column xsi:type="smallint" name="store_id" unsigned="true" nullable="false" default="0" comment="Store view id (0 = legacy row, use default store in cron)"/>
+        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP" comment="Created"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="PANTOSOURCE_QUEUE_PUBLIC_ID">
+            <column name="public_id"/>
+        </constraint>
+        <index referenceId="PANTOSOURCE_QUEUE_NEXT_ATTEMPT" indexType="btree">
+            <column name="next_attempt_at"/>
+        </index>
+        <index referenceId="PANTOSOURCE_QUEUE_STORE_ID" indexType="btree">
+            <column name="store_id"/>
+        </index>
+    </table>
+    <table name="pantosource_dead_letter" resource="default" engine="innodb" comment="PantoSource dead letters">
+        <column xsi:type="int" name="entity_id" unsigned="true" nullable="false" identity="true"/>
+        <column xsi:type="varchar" name="public_id" nullable="false" length="32"/>
+        <column xsi:type="varchar" name="event_id" nullable="true" length="64"/>
+        <column xsi:type="mediumtext" name="payload" nullable="false"/>
+        <column xsi:type="smallint" name="attempts" unsigned="true" nullable="false" default="0"/>
+        <column xsi:type="text" name="last_error" nullable="true"/>
+        <column xsi:type="smallint" name="store_id" unsigned="true" nullable="false" default="0" comment="Store view id when moved from queue"/>
+        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="PANTOSOURCE_DL_PUBLIC_ID">
+            <column name="public_id"/>
+        </constraint>
+    </table>
+    <table name="pantosource_debug_timeline" resource="default" engine="innodb" comment="PantoSource debug timeline">
+        <column xsi:type="int" name="entity_id" unsigned="true" nullable="false" identity="true"/>
+        <column xsi:type="varchar" name="public_id" nullable="false" length="32"/>
+        <column xsi:type="varchar" name="ts" nullable="false" length="32" comment="ISO8601"/>
+        <column xsi:type="varchar" name="source" nullable="true" length="64"/>
+        <column xsi:type="varchar" name="hook_or_action" nullable="true" length="128"/>
+        <column xsi:type="varchar" name="event_name" nullable="true" length="128"/>
+        <column xsi:type="varchar" name="event_id" nullable="true" length="64"/>
+        <column xsi:type="varchar" name="status" nullable="true" length="64"/>
+        <column xsi:type="text" name="context_json" nullable="true"/>
+        <column xsi:type="mediumtext" name="payload_json" nullable="true"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <index referenceId="PANTOSOURCE_DEBUG_TS" indexType="btree">
+            <column name="entity_id"/>
+        </index>
+    </table>
+    <table name="pantosource_order_dedupe" resource="default" engine="innodb" comment="Conversion dedupe flags">
+        <column xsi:type="int" name="order_id" unsigned="true" nullable="false" comment="Sales order entity_id"/>
+        <column xsi:type="smallint" name="purchase_emitted" unsigned="true" nullable="false" default="0"/>
+        <column xsi:type="timestamp" name="updated_at" on_update="true" nullable="false" default="CURRENT_TIMESTAMP"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="order_id"/>
+        </constraint>
+    </table>
+</schema>

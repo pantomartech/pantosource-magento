@@ -1,0 +1,159 @@
+<?php
+/** @var \Magento\Backend\Block\Template $block */
+/** @var \Panto\Source\ViewModel\Adminhtml\DebugTimelineViewModel|null $viewModel */
+$viewModel = $block->getData('view_model');
+if ($viewModel === null) {
+    return;
+}
+$filters = $viewModel->getFilters();
+$rows = $viewModel->getRows();
+$deadLetters = $viewModel->getDeadLetters();
+$debugIndexUrl = $viewModel->getIndexUrl();
+?>
+<div class="page-main-actions">
+    <form method="post"
+          action="<?= $block->escapeUrl($viewModel->getClearUrl()) ?>"
+          class="pantosource-debug-clear">
+        <input name="form_key"
+               type="hidden"
+               value="<?= $block->escapeHtmlAttr($viewModel->getFormKey()) ?>"/>
+        <button type="submit"
+                class="action-secondary"
+                onclick="return window.confirm('<?= $block->escapeJs(__('Clear all debug timeline rows for this database?')) ?>');">
+            <?= $block->escapeHtml(__('Clear timeline')) ?>
+        </button>
+    </form>
+</div>
+
+<h2><?= $block->escapeHtml(__('Filters')) ?></h2>
+<form method="get" action="<?= $block->escapeUrl($debugIndexUrl) ?>">
+    <div class="admin__field admin__field-inline">
+        <label class="admin__field-label" for="flt_source"><span><?= $block->escapeHtml(__('Source')) ?></span></label>
+        <input class="admin__control-text" id="flt_source" name="source" type="text"
+               value="<?= $block->escapeHtmlAttr($filters['source']) ?>"/>
+    </div>
+    <div class="admin__field admin__field-inline">
+        <label class="admin__field-label" for="flt_status"><span><?= $block->escapeHtml(__('Status')) ?></span></label>
+        <input class="admin__control-text" id="flt_status" name="status" type="text"
+               value="<?= $block->escapeHtmlAttr($filters['status']) ?>"/>
+    </div>
+    <div class="admin__field admin__field-inline">
+        <label class="admin__field-label" for="flt_event"><span><?= $block->escapeHtml(__('Event name contains')) ?></span></label>
+        <input class="admin__control-text" id="flt_event" name="event_name" type="text"
+               value="<?= $block->escapeHtmlAttr($filters['event_name']) ?>"/>
+    </div>
+    <button type="submit" class="action-secondary"><?= $block->escapeHtml(__('Apply filters')) ?></button>
+</form>
+
+<p class="description">
+    <?= $block->escapeHtml(__('Recent dispatch attempts and markers (newest rows first). Enable Debug Mode under Stores → Configuration → PantoSource to capture storefront and server events.')) ?>
+</p>
+
+<h2><?= $block->escapeHtml(__('Dead letter (replay)')) ?></h2>
+<?php if ($deadLetters === []) : ?>
+    <p><?= $block->escapeHtml(__('No dead-letter rows.')) ?></p>
+<?php else : ?>
+    <form method="post" action="<?= $block->escapeUrl($viewModel->getReplayUrl()) ?>" class="pantosource-debug-replay">
+        <input name="form_key" type="hidden" value="<?= $block->escapeHtmlAttr($viewModel->getFormKey()) ?>"/>
+        <div class="admin__field">
+            <label class="admin__field-label" for="dl_public_id"><span><?= $block->escapeHtml(__('Replay public id')) ?></span></label>
+            <div class="admin__field-control">
+                <select name="public_id" id="dl_public_id" class="admin__control-select" required>
+                    <?php foreach ($deadLetters as $dl) : ?>
+                        <option value="<?= $block->escapeHtmlAttr((string) ($dl['public_id'] ?? '')) ?>">
+                            <?= $block->escapeHtml(
+                                (string) ($dl['public_id'] ?? '')
+                                . ' | store '
+                                . (string) ($dl['store_id'] ?? '')
+                                . ' | '
+                                . substr((string) ($dl['last_error'] ?? ''), 0, 80)
+                            ) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="action-secondary"><?= $block->escapeHtml(__('Replay selected')) ?></button>
+    </form>
+    <div class="admin__table-wrapper">
+        <table class="data-grid">
+            <thead>
+            <tr>
+                <th><?= $block->escapeHtml(__('Public id')) ?></th>
+                <th><?= $block->escapeHtml(__('Store')) ?></th>
+                <th><?= $block->escapeHtml(__('Attempts')) ?></th>
+                <th><?= $block->escapeHtml(__('Last error')) ?></th>
+            </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($deadLetters as $dl) : ?>
+                <tr>
+                    <td><code><?= $block->escapeHtml((string) ($dl['public_id'] ?? '')) ?></code></td>
+                    <td><?= $block->escapeHtml((string) ($dl['store_id'] ?? '')) ?></td>
+                    <td><?= $block->escapeHtml((string) ($dl['attempts'] ?? '')) ?></td>
+                    <td><?= $block->escapeHtml(substr((string) ($dl['last_error'] ?? ''), 0, 200)) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+<?php endif; ?>
+
+<?php if ($rows === []) : ?>
+    <h2><?= $block->escapeHtml(__('Timeline')) ?></h2>
+    <p><?= $block->escapeHtml(__('No rows yet.')) ?></p>
+<?php else : ?>
+    <h2><?= $block->escapeHtml(__('Timeline')) ?></h2>
+    <div class="admin__table-wrapper">
+        <table class="data-grid">
+            <thead>
+            <tr>
+                <th><?= $block->escapeHtml(__('ID')) ?></th>
+                <th><?= $block->escapeHtml(__('Time (UTC)')) ?></th>
+                <th><?= $block->escapeHtml(__('Source')) ?></th>
+                <th><?= $block->escapeHtml(__('Hook / action')) ?></th>
+                <th><?= $block->escapeHtml(__('Event')) ?></th>
+                <th><?= $block->escapeHtml(__('Status')) ?></th>
+                <th><?= $block->escapeHtml(__('Context')) ?></th>
+            </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($rows as $row) : ?>
+                <tr>
+                    <td><?= $block->escapeHtml((string) ($row['entity_id'] ?? '')) ?></td>
+                    <td><?= $block->escapeHtml((string) ($row['ts'] ?? '')) ?></td>
+                    <td><?= $block->escapeHtml((string) ($row['source'] ?? '')) ?></td>
+                    <td><?= $block->escapeHtml((string) ($row['hook_or_action'] ?? '')) ?></td>
+                    <td><?= $block->escapeHtml((string) ($row['event_name'] ?? '')) ?></td>
+                    <td><?= $block->escapeHtml((string) ($row['status'] ?? '')) ?></td>
+                    <td>
+                        <pre class="pantosource-debug-pre"><?= $block->escapeHtml(
+                            isset($row['context_json']) ? (string) $row['context_json'] : ''
+                        ) ?></pre>
+                    </td>
+                </tr>
+                <tr class="pantosource-debug-payload-row">
+                    <td colspan="7">
+                        <pre class="pantosource-debug-pre"><?= $block->escapeHtml(
+                            isset($row['payload_json']) ? (string) $row['payload_json'] : ''
+                        ) ?></pre>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <style>
+        .pantosource-debug-pre {
+            max-height: 200px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 11px;
+            margin: 0;
+        }
+        tr.pantosource-debug-payload-row td {
+            background: #fafafa;
+        }
+    </style>
+<?php endif; ?>

@@ -1,0 +1,88 @@
+<?php
+/** @var \Magento\Backend\Block\Template $block */
+/** @var \Panto\Source\ViewModel\Adminhtml\OpsDashboardViewModel|null $vm */
+$vm = $block->getData('view_model');
+if ($vm === null) {
+    return;
+}
+$errors = $vm->getRecentErrors();
+?>
+<div class="page-main-actions">
+    <div class="page-actions-buttons">
+        <a class="action-secondary" href="<?= $block->escapeUrl($vm->getDebugUrl()) ?>">
+            <?= $block->escapeHtml(__('Open debug timeline')) ?>
+        </a>
+    </div>
+</div>
+
+<h2><?= $block->escapeHtml(__('Queue status')) ?></h2>
+<ul>
+    <li><?= $block->escapeHtml((string) __('Pending retry rows: %1', $vm->getPendingCount())) ?></li>
+    <li><?= $block->escapeHtml((string) __('Dead-letter rows: %1', $vm->getDeadLetterCount())) ?></li>
+</ul>
+
+<h2><?= $block->escapeHtml(__('Recent transport errors')) ?></h2>
+<?php if ($errors === []) : ?>
+    <p class="message message-notice"><?= $block->escapeHtml(__('No recent errors recorded on queue or dead-letter rows.')) ?></p>
+<?php else : ?>
+    <div class="admin__table-wrapper">
+        <table class="data-grid">
+            <thead>
+            <tr>
+                <th><?= $block->escapeHtml(__('Surface')) ?></th>
+                <th><?= $block->escapeHtml(__('Public id')) ?></th>
+                <th><?= $block->escapeHtml(__('Store ID')) ?></th>
+                <th><?= $block->escapeHtml(__('Created')) ?></th>
+                <th><?= $block->escapeHtml(__('Error (excerpt)')) ?></th>
+            </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($errors as $err) : ?>
+                <tr>
+                    <td><?= $block->escapeHtml($err['surface'] ?? '') ?></td>
+                    <td><code><?= $block->escapeHtml($err['public_id'] ?? '') ?></code></td>
+                    <td><?= $block->escapeHtml((string) ($err['store_id'] ?? '')) ?></td>
+                    <td><?= $block->escapeHtml($err['created_at'] ?? '') ?></td>
+                    <td><?= $block->escapeHtml($err['last_error'] ?? '') ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+<?php endif; ?>
+
+<h2><?= $block->escapeHtml(__('Send test pageview')) ?></h2>
+<form method="post" action="<?= $block->escapeUrl($vm->getTestSendUrl()) ?>" class="admin__fieldset">
+    <input name="form_key" type="hidden" value="<?= $block->escapeHtmlAttr($vm->getFormKey()) ?>"/>
+    <div class="admin__field">
+        <label class="admin__field-label" for="pantosource_test_store"><span><?= $block->escapeHtml(__('Store view')) ?></span></label>
+        <div class="admin__field-control">
+            <select name="store_id" id="pantosource_test_store">
+                <?php foreach ($vm->getStoreOptions() as $opt) : ?>
+                    <option value="<?= $block->escapeHtmlAttr($opt['value']) ?>"><?= $block->escapeHtml($opt['label']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </div>
+    <button type="submit" class="action-secondary"><?= $block->escapeHtml(__('Send test pageview')) ?></button>
+</form>
+
+<h2><?= $block->escapeHtml(__('Replay dead letter')) ?></h2>
+<form method="post" action="<?= $block->escapeUrl($vm->getReplayUrl()) ?>" class="admin__fieldset">
+    <input name="form_key" type="hidden" value="<?= $block->escapeHtmlAttr($vm->getFormKey()) ?>"/>
+    <div class="admin__field">
+        <label class="admin__field-label" for="pantosource_replay_id"><span><?= $block->escapeHtml(__('Public id')) ?></span></label>
+        <div class="admin__field-control">
+            <input name="public_id" id="pantosource_replay_id" type="text" class="admin__control-text"
+                   placeholder="q_xxxxxxxxxxxxxx" required/>
+        </div>
+    </div>
+    <button type="submit" class="action-secondary"><?= $block->escapeHtml(__('Replay one dead letter')) ?></button>
+</form>
+
+<h2><?= $block->escapeHtml(__('Process retry queue (manual)')) ?></h2>
+<p><?= $block->escapeHtml(__('Runs the same batch processor as the cron job once (up to 50 due rows).')) ?></p>
+<form method="post" action="<?= $block->escapeUrl($vm->getProcessQueueUrl()) ?>">
+    <input name="form_key" type="hidden" value="<?= $block->escapeHtmlAttr($vm->getFormKey()) ?>"/>
+    <button type="submit" class="action-secondary"><?= $block->escapeHtml(__('Process queue batch now')) ?></button>
+</form>
