@@ -48,8 +48,9 @@ class IngestionClient
         }
 
         $status = (int) $this->curl->getStatus();
-        if ($status >= 200 && $status < 300) {
-            return [true, $status, 'ok'];
+        // Duplicate event.id responses are idempotent success from ingestion.
+        if (($status >= 200 && $status < 300) || $status === 409) {
+            return [true, $status, $status === 409 ? 'duplicate_idempotent' : 'ok'];
         }
         return [false, $status, $this->curl->getBody()];
     }

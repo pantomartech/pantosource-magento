@@ -74,10 +74,81 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         if (isset($body['context']) && is_array($body['context'])) {
             $data['context'] = $this->mergeContext($body['context'], $data['context'] ?? []);
         }
-        foreach (['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid', 'fbp', 'fbc'] as $k) {
+        $capturedAttribution = [];
+        foreach ([
+            'utm_source',
+            'utm_medium',
+            'utm_campaign',
+            'utm_term',
+            'utm_content',
+            'gclid',
+            'fbclid',
+            'ttclid',
+            'msclkid',
+            'gbraid',
+            'wbraid',
+            'fbp',
+            'fbc',
+        ] as $k) {
             if (isset($body[$k]) && is_string($body[$k]) && $body[$k] !== '') {
                 $data[$k] = $body[$k];
+                $capturedAttribution[$k] = $body[$k];
             }
+        }
+        if ($capturedAttribution !== []) {
+            if (!isset($data['context']) || !is_array($data['context'])) {
+                $data['context'] = [];
+            }
+            if (!isset($data['context']['attribution']) || !is_array($data['context']['attribution'])) {
+                $data['context']['attribution'] = [];
+            }
+
+            $first = isset($data['context']['attribution']['first_touch']) && is_array($data['context']['attribution']['first_touch'])
+                ? $data['context']['attribution']['first_touch']
+                : [];
+            $last = isset($data['context']['attribution']['last_touch']) && is_array($data['context']['attribution']['last_touch'])
+                ? $data['context']['attribution']['last_touch']
+                : [];
+
+            foreach ($capturedAttribution as $key => $value) {
+                if (!isset($first[$key]) || $first[$key] === '') {
+                    $first[$key] = $value;
+                }
+                $last[$key] = $value;
+            }
+
+            $capturedAt = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z');
+            if (!isset($first['captured_at']) || !is_string($first['captured_at']) || $first['captured_at'] === '') {
+                $first['captured_at'] = $capturedAt;
+            }
+            $last['captured_at'] = $capturedAt;
+
+            $landingUrl = '';
+            if (isset($data['context']['page']) && is_array($data['context']['page']) && isset($data['context']['page']['url'])) {
+                $landingUrl = (string) $data['context']['page']['url'];
+            }
+            if ($landingUrl !== '') {
+                if (!isset($first['landing_url']) || !is_string($first['landing_url']) || $first['landing_url'] === '') {
+                    $first['landing_url'] = $landingUrl;
+                }
+                $last['landing_url'] = $landingUrl;
+            }
+
+            $referrer = '';
+            if (isset($data['context']['page']) && is_array($data['context']['page']) && isset($data['context']['page']['referrer'])) {
+                $referrer = (string) $data['context']['page']['referrer'];
+            } elseif (isset($data['context']['referrer'])) {
+                $referrer = (string) $data['context']['referrer'];
+            }
+            if ($referrer !== '') {
+                if (!isset($first['referrer']) || !is_string($first['referrer']) || $first['referrer'] === '') {
+                    $first['referrer'] = $referrer;
+                }
+                $last['referrer'] = $referrer;
+            }
+
+            $data['context']['attribution']['first_touch'] = $first;
+            $data['context']['attribution']['last_touch'] = $last;
         }
 
         $this->dispatcher->dispatch($eventName, $data, '', true, (int) $this->storeManager->getStore()->getId());

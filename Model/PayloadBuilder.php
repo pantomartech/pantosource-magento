@@ -233,8 +233,22 @@ class PayloadBuilder
         $first = isset($attrib['first_touch']) && is_array($attrib['first_touch']) ? $attrib['first_touch'] : [];
         $last = isset($attrib['last_touch']) && is_array($attrib['last_touch']) ? $attrib['last_touch'] : [];
 
-        $metaKeys = ['fbp', 'fbc', 'fbclid'];
-        foreach ($metaKeys as $mk) {
+        $attributionKeys = [
+            'utm_source',
+            'utm_medium',
+            'utm_campaign',
+            'utm_term',
+            'utm_content',
+            'gclid',
+            'fbclid',
+            'ttclid',
+            'msclkid',
+            'gbraid',
+            'wbraid',
+            'fbp',
+            'fbc',
+        ];
+        foreach ($attributionKeys as $mk) {
             if (empty($data[$mk]) || !is_string($data[$mk])) {
                 continue;
             }
