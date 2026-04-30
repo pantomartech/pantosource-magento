@@ -10,6 +10,7 @@ use Magento\Sales\Api\OrderRepositoryInterface;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\ConversionDedupeRepository;
 use Panto\Source\Model\EventDispatcher;
+use Panto\Source\Model\HashedPiiEnricher;
 use Panto\Source\Model\OrderLineSerializer;
 
 class CheckoutSuccessObserver implements ObserverInterface
@@ -19,7 +20,8 @@ class CheckoutSuccessObserver implements ObserverInterface
         private readonly HttpRequest $request,
         private readonly OrderRepositoryInterface $orderRepository,
         private readonly OrderLineSerializer $orderLineSerializer,
-        private readonly ConversionDedupeRepository $dedupeRepository
+        private readonly ConversionDedupeRepository $dedupeRepository,
+        private readonly HashedPiiEnricher $hashedPiiEnricher
     ) {
     }
 
@@ -54,6 +56,7 @@ class CheckoutSuccessObserver implements ObserverInterface
             'occurrence' => 'first',
             'context' => StorefrontContext::fromRequest($this->request, 'checkout', 'Thank you'),
         ];
+        $data = $this->hashedPiiEnricher->enrich($order, $data, (int) $order->getStoreId());
 
         $ok = $this->dispatcher->dispatch('magento_purchase_completed', $data, 'conversion');
         if ($ok) {

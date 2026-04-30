@@ -94,12 +94,10 @@ class Config implements ConfigInterface
         if ($mode === 'none') {
             return true;
         }
-        if ($mode === 'basic') {
-            // Placeholder: treat as granted unless extension sets cookie "denied"
-            return true;
+        if ($mode === 'basic' || $mode === 'strict') {
+            return isset($_COOKIE['pantosource_consent']) && $_COOKIE['pantosource_consent'] === 'granted';
         }
-        // strict: require explicit consent cookie (merchant can align with CMP)
-        return isset($_COOKIE['pantosource_consent']) && $_COOKIE['pantosource_consent'] === 'granted';
+        return false;
     }
 
     public function getEventsEndpointUrl(?int $storeId = null): string

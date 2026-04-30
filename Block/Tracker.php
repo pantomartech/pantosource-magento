@@ -112,6 +112,7 @@ class Tracker extends Template
                 'isSearch' => $isSearch,
                 'isCheckout' => $isCheckout,
                 'pageTypeHint' => $pageTypeHint,
+                'attributionEnabled' => $this->config->isAttributionEnabled($storeId),
             ],
             'product' => $productData,
             'category' => $categoryData,

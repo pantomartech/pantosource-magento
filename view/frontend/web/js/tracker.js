@@ -136,8 +136,12 @@ define([], function () {
         if (!cfg.eventUrl || !cfg.formKey || !eventName) {
             return;
         }
-        var attribution = getAttributionFromUrl();
-        var meta = getMetaBrowserCookies();
+        var attrOn =
+            !cfg.flags ||
+            cfg.flags.attributionEnabled === undefined ||
+            cfg.flags.attributionEnabled === true;
+        var attribution = attrOn ? getAttributionFromUrl() : {};
+        var meta = attrOn ? getMetaBrowserCookies() : {};
         var payloadData = data ? Object.assign({}, data) : {};
         if (!payloadData.source) {
             payloadData.source = 'frontend_js';

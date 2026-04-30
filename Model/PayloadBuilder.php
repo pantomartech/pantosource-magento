@@ -58,6 +58,9 @@ class PayloadBuilder
                 ?? null;
         }
 
+        $sid = (int) $store->getId();
+        $data = $this->attachMetaBrowserIdsFromCookies($data, $sid);
+
         $url = $this->resolveUrl($baseUrl);
         $timestamp = $this->nowIsoUtc();
 
@@ -75,14 +78,14 @@ class PayloadBuilder
             'data' => $data,
         ];
 
-        $payload['user'] = $this->buildUser($data);
-        $payload['context'] = $this->buildContext($data, $url);
+        $payload['user'] = $this->buildUser($data, $sid);
+        $payload['context'] = $this->buildContext($data, $url, $sid);
         $payload['commerce'] = $this->buildCommerce($eventName, $data);
-        $payload['marketing'] = $this->buildMarketing($data);
-        $payload['privacy'] = $this->buildPrivacy();
+        $payload['marketing'] = $this->buildMarketing($data, $sid);
+        $payload['privacy'] = $this->buildPrivacy($sid);
         $payload['extensions'] = $this->buildExtensions($data);
 
-        if ($this->config->hasTrackingConsent((int) $store->getId()) && $this->config->isEnabled((int) $store->getId())) {
+        if ($this->config->hasTrackingConsent($sid) && $this->config->isEnabled($sid)) {
             $ip = $this->getClientIp();
             if ($ip !== '') {
                 $payload['network'] = ['client_ip' => $ip];
@@ -96,8 +99,9 @@ class PayloadBuilder
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    private function buildUser(array $data): array
+    private function buildUser(array $data, int $storeId): array
     {
+        $consent = $this->config->hasTrackingConsent($storeId);
         $externalId = isset($data['customer_id']) ? (string) $data['customer_id'] : '';
         if ($externalId === '' && $this->customerSession->isLoggedIn()) {
             $externalId = (string) $this->customerSession->getCustomerId();
@@ -114,7 +118,9 @@ class PayloadBuilder
         $ua = '';
         if (!empty($data['context']['user_agent'])) {
             $ua = (string) $data['context']['user_agent'];
-        } else {
+        } elseif (!empty($data['context']['device']['user_agent'])) {
+            $ua = (string) $data['context']['device']['user_agent'];
+        } elseif ($consent) {
             $ua = (string) $this->httpRequest->getServer('HTTP_USER_AGENT', '');
         }
 
@@ -139,8 +145,9 @@ class PayloadBuilder
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    private function buildContext(array $data, string $url): array
+    private function buildContext(array $data, string $url, int $storeId): array
     {
+        $consent = $this->config->hasTrackingConsent($storeId);
         $ctx = isset($data['context']) && is_array($data['context']) ? $data['context'] : [];
         $tz = (string) ($ctx['timezone'] ?? '');
         $path = (string) ($ctx['path'] ?? '');
@@ -154,7 +161,17 @@ class PayloadBuilder
         $referrer = (string) ($ctx['page']['referrer'] ?? $ctx['referrer'] ?? '');
         $pageType = (string) ($ctx['page']['type'] ?? $ctx['page_type'] ?? '');
         $platform = (string) ($ctx['platform'] ?? '');
-        $ua = (string) ($ctx['user_agent'] ?? $ctx['device']['user_agent'] ?? $this->httpRequest->getServer('HTTP_USER_AGENT', ''));
+        if ($platform === '' && $consent) {
+            $platform = (string) $this->httpRequest->getServer('HTTP_SEC_CH_UA_PLATFORM', '');
+        }
+        $ua = '';
+        if (!empty($ctx['user_agent'])) {
+            $ua = (string) $ctx['user_agent'];
+        } elseif (!empty($ctx['device']['user_agent'])) {
+            $ua = (string) $ctx['device']['user_agent'];
+        } elseif ($consent) {
+            $ua = (string) $this->httpRequest->getServer('HTTP_USER_AGENT', '');
+        }
 
         return [
             'timezone' => $tz,
@@ -206,6 +223,8 @@ class PayloadBuilder
                 }
                 $items[] = array_filter([
                     'id' => isset($item['product_id']) ? (string) $item['product_id'] : '',
+                    'parent_id' => isset($item['parent_id']) ? (string) $item['parent_id'] : '',
+                    'variant_id' => isset($item['variation_id']) ? (string) $item['variation_id'] : '',
                     'name' => isset($item['title']) ? (string) $item['title'] : (string) ($item['name'] ?? ''),
                     'category' => (string) ($item['category'] ?? ''),
                     'quantity' => isset($item['quantity']) && is_numeric($item['quantity']) ? (float) $item['quantity'] : null,
@@ -226,40 +245,42 @@ class PayloadBuilder
      * @param array<string, mixed> $data
      * @return array<string, array<string, mixed>>
      */
-    private function buildMarketing(array $data): array
+    private function buildMarketing(array $data, int $storeId): array
     {
         $ctx = isset($data['context']) && is_array($data['context']) ? $data['context'] : [];
         $attrib = isset($ctx['attribution']) && is_array($ctx['attribution']) ? $ctx['attribution'] : [];
         $first = isset($attrib['first_touch']) && is_array($attrib['first_touch']) ? $attrib['first_touch'] : [];
         $last = isset($attrib['last_touch']) && is_array($attrib['last_touch']) ? $attrib['last_touch'] : [];
 
-        $attributionKeys = [
-            'utm_source',
-            'utm_medium',
-            'utm_campaign',
-            'utm_term',
-            'utm_content',
-            'gclid',
-            'fbclid',
-            'ttclid',
-            'msclkid',
-            'gbraid',
-            'wbraid',
-            'fbp',
-            'fbc',
-        ];
-        foreach ($attributionKeys as $mk) {
-            if (empty($data[$mk]) || !is_string($data[$mk])) {
-                continue;
+        if ($this->config->isAttributionEnabled($storeId)) {
+            $attributionKeys = [
+                'utm_source',
+                'utm_medium',
+                'utm_campaign',
+                'utm_term',
+                'utm_content',
+                'gclid',
+                'fbclid',
+                'ttclid',
+                'msclkid',
+                'gbraid',
+                'wbraid',
+                'fbp',
+                'fbc',
+            ];
+            foreach ($attributionKeys as $mk) {
+                if (empty($data[$mk]) || !is_string($data[$mk])) {
+                    continue;
+                }
+                $val = trim($data[$mk]);
+                if ($val === '') {
+                    continue;
+                }
+                if (empty($first[$mk])) {
+                    $first[$mk] = $val;
+                }
+                $last[$mk] = $val;
             }
-            $val = trim($data[$mk]);
-            if ($val === '') {
-                continue;
-            }
-            if (empty($first[$mk])) {
-                $first[$mk] = $val;
-            }
-            $last[$mk] = $val;
         }
 
         return [
@@ -270,10 +291,34 @@ class PayloadBuilder
         ];
     }
 
-    private function buildPrivacy(): array
+    /**
+     * Merge Meta browser cookies into payload data for canonical marketing mapping.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function attachMetaBrowserIdsFromCookies(array $data, int $storeId): array
     {
-        $granted = $this->config->hasTrackingConsent();
-        $mode = $this->config->getConsentMode();
+        if (!$this->config->hasTrackingConsent($storeId) || !$this->config->isAttributionEnabled($storeId)) {
+            return $data;
+        }
+        foreach (['fbp' => '_fbp', 'fbc' => '_fbc'] as $field => $cookieName) {
+            if (!empty($data[$field])) {
+                continue;
+            }
+            $raw = (string) $this->httpRequest->getCookie($cookieName, '');
+            if ($raw !== '') {
+                $data[$field] = $raw;
+            }
+        }
+
+        return $data;
+    }
+
+    private function buildPrivacy(int $storeId): array
+    {
+        $granted = $this->config->hasTrackingConsent($storeId);
+        $mode = $this->config->getConsentMode($storeId);
         return [
             'consent' => [
                 'ad_storage' => $granted,

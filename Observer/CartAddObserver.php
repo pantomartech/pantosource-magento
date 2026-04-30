@@ -6,6 +6,8 @@ namespace Panto\Source\Observer;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
+use Magento\Store\Model\StoreManagerInterface;
+use Panto\Source\Api\ConfigInterface;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\EventDispatcher;
 
@@ -13,12 +15,19 @@ class CartAddObserver implements ObserverInterface
 {
     public function __construct(
         private readonly EventDispatcher $dispatcher,
-        private readonly HttpRequest $request
+        private readonly HttpRequest $request,
+        private readonly ConfigInterface $config,
+        private readonly StoreManagerInterface $storeManager
     ) {
     }
 
     public function execute(Observer $observer): void
     {
+        $storeId = (int) $this->storeManager->getStore()->getId();
+        if ($this->config->isFrontendTrackerEnabled($storeId)) {
+            return;
+        }
+
         $item = $observer->getEvent()->getQuoteItem();
         if (!$item || !$item->getProductId()) {
             return;

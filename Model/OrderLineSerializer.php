@@ -14,8 +14,15 @@ class OrderLineSerializer
     {
         $items = [];
         foreach ($order->getAllVisibleItems() as $item) {
+            $productId = (int) $item->getProductId();
+            $parentItem = $item->getParentItem();
+            $parentId = $parentItem ? (int) $parentItem->getProductId() : $productId;
+            $variationId = $parentItem ? $productId : 0;
+
             $items[] = [
-                'product_id' => (int) $item->getProductId(),
+                'product_id' => $productId,
+                'parent_id' => $parentId,
+                'variation_id' => $variationId,
                 'title' => $item->getName(),
                 'sku' => $item->getSku(),
                 'quantity' => (float) $item->getQtyOrdered(),

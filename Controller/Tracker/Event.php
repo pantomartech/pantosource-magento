@@ -75,24 +75,27 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
             $data['context'] = $this->mergeContext($body['context'], $data['context'] ?? []);
         }
         $capturedAttribution = [];
-        foreach ([
-            'utm_source',
-            'utm_medium',
-            'utm_campaign',
-            'utm_term',
-            'utm_content',
-            'gclid',
-            'fbclid',
-            'ttclid',
-            'msclkid',
-            'gbraid',
-            'wbraid',
-            'fbp',
-            'fbc',
-        ] as $k) {
-            if (isset($body[$k]) && is_string($body[$k]) && $body[$k] !== '') {
-                $data[$k] = $body[$k];
-                $capturedAttribution[$k] = $body[$k];
+        $storeIdForAttr = (int) $this->storeManager->getStore()->getId();
+        if ($this->config->isAttributionEnabled($storeIdForAttr)) {
+            foreach ([
+                'utm_source',
+                'utm_medium',
+                'utm_campaign',
+                'utm_term',
+                'utm_content',
+                'gclid',
+                'fbclid',
+                'ttclid',
+                'msclkid',
+                'gbraid',
+                'wbraid',
+                'fbp',
+                'fbc',
+            ] as $k) {
+                if (isset($body[$k]) && is_string($body[$k]) && $body[$k] !== '') {
+                    $data[$k] = $body[$k];
+                    $capturedAttribution[$k] = $body[$k];
+                }
             }
         }
         if ($capturedAttribution !== []) {
