@@ -43,10 +43,10 @@ class HashedPiiEnricher
 
         $data['hashed_user'] = array_filter(
             [
-                'email' => $hash($email),
-                'phone' => $hash($normalizePhone($phone)),
-                'first_name' => $hash($first),
-                'last_name' => $hash($last),
+                'email_sha256' => $hash($email),
+                'phone_sha256' => $hash($normalizePhone($phone)),
+                'first_name_sha256' => $hash($first),
+                'last_name_sha256' => $hash($last),
             ],
             static fn (string $v): bool => $v !== ''
         );
