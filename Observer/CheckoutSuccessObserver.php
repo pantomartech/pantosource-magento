@@ -9,6 +9,7 @@ use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\ConversionDedupeRepository;
+use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
 use Panto\Source\Model\HashedPiiEnricher;
 use Panto\Source\Model\OrderLineSerializer;
@@ -21,7 +22,8 @@ class CheckoutSuccessObserver implements ObserverInterface
         private readonly OrderRepositoryInterface $orderRepository,
         private readonly OrderLineSerializer $orderLineSerializer,
         private readonly ConversionDedupeRepository $dedupeRepository,
-        private readonly HashedPiiEnricher $hashedPiiEnricher
+        private readonly HashedPiiEnricher $hashedPiiEnricher,
+        private readonly CustomerProfileBuilder $customerProfileBuilder
     ) {
     }
 
@@ -55,6 +57,7 @@ class CheckoutSuccessObserver implements ObserverInterface
             'billing_email' => (string) $order->getCustomerEmail(),
             'occurrence' => 'first',
             'context' => StorefrontContext::fromRequest($this->request, 'checkout', 'Thank you'),
+            'customer_profile' => $this->customerProfileBuilder->profileFromOrder($order),
         ];
         $data = $this->hashedPiiEnricher->enrich($order, $data, (int) $order->getStoreId());
 

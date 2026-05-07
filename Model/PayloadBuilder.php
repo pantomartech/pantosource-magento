@@ -18,7 +18,8 @@ class PayloadBuilder
         private readonly SemanticKeyBuilder $semanticKeyBuilder,
         private readonly StoreManagerInterface $storeManager,
         private readonly HttpRequest $httpRequest,
-        private readonly CustomerSession $customerSession
+        private readonly CustomerSession $customerSession,
+        private readonly CustomerProfileBuilder $customerProfileBuilder
     ) {
     }
 
@@ -133,12 +134,24 @@ class PayloadBuilder
             );
         }
 
-        return [
+        /** @var array<string, mixed> $profile */
+        $profile = [];
+        if (!empty($data['customer_profile']) && is_array($data['customer_profile'])) {
+            $profile = $data['customer_profile'];
+        } elseif ($consent && $this->customerSession->isLoggedIn()) {
+            $profile = $this->customerProfileBuilder->profileFromCustomerModel($this->customerSession->getCustomer());
+        }
+
+        $out = [
             'external_id' => $externalId,
             'email' => $email,
             'user_agent' => $ua,
             'identifiers' => empty($identifiers) ? new \stdClass() : $identifiers,
         ];
+        if ($profile !== []) {
+            $out['profile'] = $profile;
+        }
+        return $out;
     }
 
     /**
