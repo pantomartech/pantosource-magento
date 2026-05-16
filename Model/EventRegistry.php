@@ -70,12 +70,12 @@ class EventRegistry
                 'optional_keys' => ['shipment_id', 'context'],
             ],
             'magento_customer_signed_up' => [
-                'type' => 'track',
+                'type' => 'identify',
                 'required_keys' => ['customer_id'],
                 'optional_keys' => ['email', 'context'],
             ],
             'magento_customer_logged_in' => [
-                'type' => 'track',
+                'type' => 'identify',
                 'required_keys' => ['customer_id', 'login_nonce'],
                 'optional_keys' => ['email', 'context'],
             ],
