@@ -32,9 +32,6 @@ class PayloadBuilder
         $schema = EventRegistry::getSchema($eventName);
         $type = $eventTypeOverride !== '' ? $eventTypeOverride : ($schema['type'] ?? 'track');
 
-        if (!isset($data['schema_version'])) {
-            $data['schema_version'] = '1.0';
-        }
         if (!isset($data['semantic_key'])) {
             $data['semantic_key'] = $this->semanticKeyBuilder->build($eventName, $data);
         }
@@ -66,25 +63,31 @@ class PayloadBuilder
         $timestamp = $this->nowIsoUtc();
 
         $payload = [
+            'schema_version' => '2.0',
             'event' => [
                 'id' => $this->uuidV4(),
                 'name' => $eventName,
                 'type' => $type,
-                'timestamp' => $timestamp,
+                'occurred_at' => $timestamp,
                 'source' => self::SOURCE,
                 'channel' => 'web',
+                'semantic_key' => (string) $data['semantic_key'],
             ],
-            'timestamp' => $timestamp,
-            'url' => $url,
-            'data' => $data,
+            'identity' => [
+                'shop' => $host,
+                'anonymous_id' => $data['anonymous_id'] ?? null,
+                'session_id' => $data['session_id'] ?? null,
+            ],
+            'user' => $this->buildUser($data, $sid),
+            'context' => $this->buildContext($data, $url, $sid),
+            'product' => $this->buildProduct($data),
+            'cart' => $this->buildCart($data),
+            'commerce' => $this->buildCommerce($eventName, $data),
+            'marketing' => $this->buildMarketing($data, $sid),
+            'privacy' => $this->buildPrivacy($sid),
+            'extensions' => $this->buildExtensions(),
+            'data' => $this->slimEventData($data),
         ];
-
-        $payload['user'] = $this->buildUser($data, $sid);
-        $payload['context'] = $this->buildContext($data, $url, $sid);
-        $payload['commerce'] = $this->buildCommerce($eventName, $data);
-        $payload['marketing'] = $this->buildMarketing($data, $sid);
-        $payload['privacy'] = $this->buildPrivacy($sid);
-        $payload['extensions'] = $this->buildExtensions($data);
 
         if ($this->config->hasTrackingConsent($sid) && $this->config->isEnabled($sid)) {
             $ip = $this->getClientIp();
@@ -94,6 +97,58 @@ class PayloadBuilder
         }
 
         return $payload;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>|object
+     */
+    private function buildProduct(array $data): array|object
+    {
+        $product = [];
+        if (isset($data['product_id'])) {
+            $product['product_id'] = (string) $data['product_id'];
+        }
+        if (isset($data['variation_id'])) {
+            $product['variation_id'] = (string) $data['variation_id'];
+        }
+        return $product === [] ? new \stdClass() : $product;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>|object
+     */
+    private function buildCart(array $data): array|object
+    {
+        $cart = [];
+        if (isset($data['cart_id'])) {
+            $cart['cart_id'] = (string) $data['cart_id'];
+        }
+        return $cart === [] ? new \stdClass() : $cart;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>|object
+     */
+    private function slimEventData(array $data): array|object
+    {
+        $strip = [
+            'schema_version',
+            'semantic_key',
+            'shop',
+            'anonymous_id',
+            'session_id',
+            'customer_profile',
+            'context',
+            'hashed_user',
+        ];
+        $out = $data;
+        foreach ($strip as $key) {
+            unset($out[$key]);
+        }
+        return $out === [] ? new \stdClass() : $out;
     }
 
     /**
@@ -145,9 +200,9 @@ class PayloadBuilder
         $out = [
             'external_id' => $externalId,
             'email' => $email,
-            'user_agent' => $ua,
             'identifiers' => empty($identifiers) ? new \stdClass() : $identifiers,
         ];
+        unset($ua);
         if ($profile !== []) {
             $out['profile'] = $profile;
         }
@@ -186,8 +241,14 @@ class PayloadBuilder
             $ua = (string) $this->httpRequest->getServer('HTTP_USER_AGENT', '');
         }
 
+        $session = [];
+        if (!empty($ctx['landing_url']) && is_string($ctx['landing_url'])) {
+            $session['landing_url'] = (string) $ctx['landing_url'];
+        }
+
         return [
             'timezone' => $tz,
+            'session' => $session === [] ? new \stdClass() : $session,
             'page' => [
                 'url' => $pageUrl,
                 'path' => $path,
@@ -348,14 +409,9 @@ class PayloadBuilder
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    private function buildExtensions(array $data): array
+    private function buildExtensions(): array
     {
-        return [
-            'pantosource' => array_filter([
-                'schema_version' => isset($data['schema_version']) ? (string) $data['schema_version'] : '',
-                'semantic_key' => isset($data['semantic_key']) ? (string) $data['semantic_key'] : '',
-            ]),
-        ];
+        return [];
     }
 
     private function resolveUrl(string $fallbackBase): string
