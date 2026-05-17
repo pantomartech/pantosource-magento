@@ -411,7 +411,37 @@ class PayloadBuilder
      */
     private function buildExtensions(): array
     {
-        return [];
+        $ext = [
+            'magento' => [
+                'module_version' => '1.0.0',
+            ],
+        ];
+        $journeyId = $this->resolveJourneyId();
+        if ($journeyId !== '') {
+            $ext['debug'] = ['journey_id' => $journeyId];
+        }
+        return $ext;
+    }
+
+    private function resolveJourneyId(): string
+    {
+        $param = (string) $this->httpRequest->getParam('panto_journey_id', '');
+        if ($this->isUuidV4($param)) {
+            return strtolower($param);
+        }
+        $cookie = (string) $this->httpRequest->getCookie('panto_journey_id', '');
+        if ($this->isUuidV4($cookie)) {
+            return strtolower($cookie);
+        }
+        return '';
+    }
+
+    private function isUuidV4(string $value): bool
+    {
+        return (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
+            trim($value)
+        );
     }
 
     private function resolveUrl(string $fallbackBase): string
