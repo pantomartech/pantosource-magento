@@ -43,4 +43,19 @@
     <event name="customer_logout">
         <observer name="pantosource_customer_logout" instance="Panto\Source\Observer\CustomerLogoutObserver"/>
     </event>
+    <event name="sales_order_payment_place_end">
+        <observer name="pantosource_payment_info" instance="Panto\Source\Observer\PaymentInfoObserver"/>
+    </event>
+    <event name="controller_action_postdispatch_checkout_cart_index">
+        <observer name="pantosource_cart_view" instance="Panto\Source\Observer\CartViewObserver"/>
+    </event>
+    <event name="sales_order_creditmemo_save_after">
+        <observer name="pantosource_refund" instance="Panto\Source\Observer\RefundObserver"/>
+    </event>
+    <event name="sales_order_status_history_save_after">
+        <observer name="pantosource_order_cancel" instance="Panto\Source\Observer\OrderCancelObserver"/>
+    </event>
+    <event name="wishlist_add_product">
+        <observer name="pantosource_wishlist_add" instance="Panto\Source\Observer\WishlistAddObserver"/>
+    </event>
 </config>

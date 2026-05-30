@@ -184,7 +184,8 @@ class PayloadBuilder
         if (!empty($data['hashed_user']) && is_array($data['hashed_user'])) {
             $identifiers = array_filter(
                 array_map('strval', array_intersect_key($data['hashed_user'], array_flip(
-                    ['email_sha256', 'phone_sha256', 'first_name_sha256', 'last_name_sha256']
+                    ['email_sha256', 'phone_sha256', 'first_name_sha256', 'last_name_sha256',
+                     'city_sha256', 'state_sha256', 'zip_sha256', 'country_sha256']
                 )))
             );
         }
@@ -288,6 +289,9 @@ class PayloadBuilder
                     $commerce[$to] = (float) $ot[$from];
                 }
             }
+            if (!empty($ot['payment_method']) && is_string($ot['payment_method']) && trim($ot['payment_method']) !== '') {
+                $commerce['payment_method'] = trim($ot['payment_method']);
+            }
         }
         if (!empty($data['items']) && is_array($data['items'])) {
             $items = [];
@@ -295,16 +299,20 @@ class PayloadBuilder
                 if (!is_array($item)) {
                     continue;
                 }
+                $variantId = isset($item['variation_id']) ? (string) $item['variation_id']
+                    : (isset($item['variant_id']) ? (string) $item['variant_id'] : '');
                 $items[] = array_filter([
                     'id' => isset($item['product_id']) ? (string) $item['product_id'] : '',
                     'parent_id' => isset($item['parent_id']) ? (string) $item['parent_id'] : '',
-                    'variant_id' => isset($item['variation_id']) ? (string) $item['variation_id'] : '',
+                    'variant_id' => $variantId,
+                    'sku' => isset($item['sku']) ? (string) $item['sku'] : '',
                     'name' => isset($item['title']) ? (string) $item['title'] : (string) ($item['name'] ?? ''),
                     'category' => (string) ($item['category'] ?? ''),
                     'quantity' => isset($item['quantity']) && is_numeric($item['quantity']) ? (float) $item['quantity'] : null,
                     'price' => isset($item['unit_price']) && is_numeric($item['unit_price'])
                         ? (float) $item['unit_price']
                         : (isset($item['price']) && is_numeric($item['price']) ? (float) $item['price'] : null),
+                    'content_type' => $variantId !== '' ? 'product' : 'product_group',
                 ], static fn ($v) => $v !== null && $v !== '');
             }
             if ($items !== []) {
@@ -341,6 +349,7 @@ class PayloadBuilder
                 'wbraid',
                 'fbp',
                 'fbc',
+                'ttp',
             ];
             foreach ($attributionKeys as $mk) {
                 if (empty($data[$mk]) || !is_string($data[$mk])) {
@@ -376,13 +385,22 @@ class PayloadBuilder
         if (!$this->config->hasTrackingConsent($storeId) || !$this->config->isAttributionEnabled($storeId)) {
             return $data;
         }
-        foreach (['fbp' => '_fbp', 'fbc' => '_fbc'] as $field => $cookieName) {
+        foreach (['fbp' => '_fbp', 'fbc' => '_fbc', 'ttp' => '_ttp'] as $field => $cookieName) {
             if (!empty($data[$field])) {
                 continue;
             }
             $raw = (string) $this->httpRequest->getCookie($cookieName, '');
             if ($raw !== '') {
                 $data[$field] = $raw;
+            }
+        }
+
+        // Synthesise fbc from fbclid query param when _fbc cookie is absent.
+        if (empty($data['fbc'])) {
+            $fbclid = (string) $this->httpRequest->getParam('fbclid', '');
+            if ($fbclid !== '') {
+                $ms = (int) floor(microtime(true) * 1000);
+                $data['fbc'] = 'fb.1.' . $ms . '.' . $fbclid;
             }
         }
 

@@ -270,11 +270,12 @@ define([], function () {
                 });
             }
 
-            if (cfg.flags && cfg.flags.isCheckout) {
-                once(fired, 'checkout_initiated', function () {
-                    postEvent(cfg, 'checkout_initiated', { source: 'frontend_js' });
-                });
-            }
+            // checkout_initiated is emitted server-side by CheckoutInitObserver
+            // (controller_action_predispatch_checkout_index_index), which provides a richer
+            // payload (full cart items with categories, cart_total, currency, item_count) and
+            // is already session-deduplicated via CheckoutSession key
+            // pantosource_checkout_init_sent. Emitting it here too caused a duplicate on
+            // every checkout page load.
 
             installAddToCartClicks(cfg, fired);
         });

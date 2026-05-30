@@ -53,6 +53,8 @@ class CartUpdateObserver implements ObserverInterface
                 'quantity_delta' => $delta,
                 'product_id' => (int) $item->getProductId(),
                 'sku' => (string) $item->getSku(),
+                'unit_price' => (float) $item->getPrice(),
+                'currency' => (string) $quote->getQuoteCurrencyCode(),
                 'context' => StorefrontContext::fromRequest($this->request, 'cart', ''),
             ];
             $this->dispatcher->dispatch('magento_cart_item_quantity_changed', $data);

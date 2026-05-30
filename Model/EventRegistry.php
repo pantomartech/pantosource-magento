@@ -89,6 +89,31 @@ class EventRegistry
                 'required_keys' => ['customer_id'],
                 'optional_keys' => ['context'],
             ],
+            'view_cart' => [
+                'type' => 'track',
+                'required_keys' => [],
+                'optional_keys' => ['cart_total', 'currency', 'item_count', 'items', 'context'],
+            ],
+            'magento_refund_created' => [
+                'type' => 'track',
+                'required_keys' => ['order_id', 'creditmemo_id'],
+                'optional_keys' => ['refund_amount', 'currency', 'items', 'context'],
+            ],
+            'magento_order_cancelled' => [
+                'type' => 'track',
+                'required_keys' => ['order_id'],
+                'optional_keys' => ['total', 'currency', 'items', 'context'],
+            ],
+            'magento_add_to_wishlist' => [
+                'type' => 'track',
+                'required_keys' => ['product_id'],
+                'optional_keys' => ['sku', 'unit_price', 'currency', 'context'],
+            ],
+            'add_payment_info' => [
+                'type' => 'track',
+                'required_keys' => [],
+                'optional_keys' => ['payment_method', 'cart_total', 'currency', 'items', 'context'],
+            ],
         ];
     }
 

@@ -36,6 +36,8 @@ class CartAddObserver implements ObserverInterface
             'product_id' => (int) $item->getProductId(),
             'quantity' => (int) $item->getQty(),
             'sku' => (string) $item->getSku(),
+            'unit_price' => (float) $item->getPrice(),
+            'currency' => (string) $this->storeManager->getStore()->getCurrentCurrencyCode(),
             'quote_item_id' => (int) $item->getId(),
             'context' => StorefrontContext::fromRequest($this->request, 'cart', ''),
         ];
