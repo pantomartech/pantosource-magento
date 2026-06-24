@@ -8,6 +8,7 @@ use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Framework\Registry;
 use Magento\Store\Model\StoreManagerInterface;
+use Panto\Source\Api\ConfigInterface;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\EventDispatcher;
 
@@ -17,13 +18,18 @@ class ProductViewObserver implements ObserverInterface
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
         private readonly Registry $registry,
-        private readonly StoreManagerInterface $storeManager
+        private readonly StoreManagerInterface $storeManager,
+        private readonly ConfigInterface $config
     ) {
     }
 
     public function execute(Observer $observer): void
     {
         unset($observer);
+        $storeId = (int) $this->storeManager->getStore()->getId();
+        if ($this->config->isFrontendTrackerEnabled($storeId)) {
+            return;
+        }
         $product = $this->registry->registry('current_product');
         if (!$product || !$product->getId()) {
             return;

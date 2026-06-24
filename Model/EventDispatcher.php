@@ -7,6 +7,8 @@ use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Api\ConfigInterface;
 use Psr\Log\LoggerInterface;
 
+use Panto\Source\Model\ConversionAttributionSnapshot;
+
 class EventDispatcher
 {
     public function __construct(
@@ -16,7 +18,8 @@ class EventDispatcher
         private readonly QueueBroker $queueBroker,
         private readonly DebugTimeline $debugTimeline,
         private readonly StoreManagerInterface $storeManager,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly ConversionAttributionSnapshot $conversionSnapshot
     ) {
     }
 
@@ -42,6 +45,10 @@ class EventDispatcher
         if ($missing !== []) {
             $this->logger->info('PantoSource event skipped: missing keys', ['event' => $eventName, 'missing' => $missing]);
             return false;
+        }
+
+        if ($this->conversionSnapshot->appliesTo($eventName)) {
+            $data = $this->conversionSnapshot->attach($data, $sid);
         }
 
         try {

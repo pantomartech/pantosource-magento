@@ -9,6 +9,7 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Panto\Source\Helper\StorefrontContext;
+use Panto\Source\Model\CheckoutIdentityRepository;
 use Panto\Source\Model\EventDispatcher;
 
 class CheckoutInitObserver implements ObserverInterface
@@ -19,7 +20,8 @@ class CheckoutInitObserver implements ObserverInterface
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
         private readonly CheckoutSession $checkoutSession,
-        private readonly CategoryRepositoryInterface $categoryRepository
+        private readonly CategoryRepositoryInterface $categoryRepository,
+        private readonly CheckoutIdentityRepository $checkoutIdentity
     ) {
     }
 
@@ -86,6 +88,7 @@ class CheckoutInitObserver implements ObserverInterface
             'items' => $items,
             'context' => StorefrontContext::fromRequest($this->request, 'checkout', 'Checkout'),
         ];
+        $this->checkoutIdentity->persistToCheckoutSession($data);
         $this->dispatcher->dispatch('checkout_initiated', $data);
     }
 }

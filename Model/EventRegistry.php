@@ -57,12 +57,12 @@ class EventRegistry
             'magento_checkout_order_placed' => [
                 'type' => 'track',
                 'required_keys' => ['order_id'],
-                'optional_keys' => ['order_increment_id', 'status', 'total', 'currency', 'items', 'customer_id', 'context'],
+                'optional_keys' => ['order_increment_id', 'status', 'total', 'currency', 'items', 'customer_id', 'is_new_customer', 'coupon_codes', 'context'],
             ],
             'magento_purchase_completed' => [
                 'type' => 'conversion',
                 'required_keys' => ['order_id'],
-                'optional_keys' => ['order_increment_id', 'status', 'total', 'currency', 'items', 'occurrence', 'customer_id', 'context'],
+                'optional_keys' => ['order_increment_id', 'status', 'total', 'currency', 'items', 'occurrence', 'customer_id', 'is_new_customer', 'coupon_codes', 'context'],
             ],
             'magento_order_fulfilled' => [
                 'type' => 'track',
@@ -113,6 +113,11 @@ class EventRegistry
                 'type' => 'track',
                 'required_keys' => [],
                 'optional_keys' => ['payment_method', 'cart_total', 'currency', 'items', 'context'],
+            ],
+            'magento_customer_updated' => [
+                'type' => 'identify',
+                'required_keys' => ['customer_id'],
+                'optional_keys' => ['email', 'context'],
             ],
         ];
     }

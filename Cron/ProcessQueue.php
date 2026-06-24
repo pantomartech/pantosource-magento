@@ -41,6 +41,7 @@ class ProcessQueue
             }
             [$ok, , $msg] = $this->ingestionClient->send($payload, true, $storeId);
             if ($ok) {
+                $this->queueBroker->clearLease($entityId);
                 $this->queueBroker->deleteByEntityId($entityId);
                 continue;
             }
@@ -49,6 +50,7 @@ class ProcessQueue
             } else {
                 $this->queueBroker->bumpFailure($entityId, $attempts, $msg);
             }
+            $this->queueBroker->clearLease($entityId);
         }
     }
 }

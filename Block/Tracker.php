@@ -113,6 +113,7 @@ class Tracker extends Template
                 'isCheckout' => $isCheckout,
                 'pageTypeHint' => $pageTypeHint,
                 'attributionEnabled' => $this->config->isAttributionEnabled($storeId),
+                'enableSpaPageviews' => $this->config->isSpaPageviewsEnabled($storeId),
             ],
             'product' => $productData,
             'category' => $categoryData,

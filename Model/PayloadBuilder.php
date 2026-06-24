@@ -9,6 +9,8 @@ use Magento\Framework\UrlInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Api\ConfigInterface;
 
+use Panto\Source\Helper\BrowserContextBridge;
+
 class PayloadBuilder
 {
     private const SOURCE = 'pantosource_magento';
@@ -19,7 +21,9 @@ class PayloadBuilder
         private readonly StoreManagerInterface $storeManager,
         private readonly HttpRequest $httpRequest,
         private readonly CustomerSession $customerSession,
-        private readonly CustomerProfileBuilder $customerProfileBuilder
+        private readonly CustomerProfileBuilder $customerProfileBuilder,
+        private readonly AttributionWindowCapture $attributionWindow,
+        private readonly BrowserContextBridge $browserContextBridge
     ) {
     }
 
@@ -57,6 +61,7 @@ class PayloadBuilder
         }
 
         $sid = (int) $store->getId();
+        $data = $this->browserContextBridge->mergeIntoData($data);
         $data = $this->attachMetaBrowserIdsFromCookies($data, $sid);
 
         $url = $this->resolveUrl($baseUrl);
@@ -85,7 +90,7 @@ class PayloadBuilder
             'commerce' => $this->buildCommerce($eventName, $data),
             'marketing' => $this->buildMarketing($data, $sid),
             'privacy' => $this->buildPrivacy($sid),
-            'extensions' => $this->buildExtensions(),
+            'extensions' => $this->buildExtensionsFromData($data),
             'data' => $this->slimEventData($data),
         ];
 
@@ -143,6 +148,8 @@ class PayloadBuilder
             'customer_profile',
             'context',
             'hashed_user',
+            'attribution_snapshot',
+            'browser_fingerprint',
         ];
         $out = $data;
         foreach ($strip as $key) {
@@ -243,8 +250,18 @@ class PayloadBuilder
         }
 
         $session = [];
-        if (!empty($ctx['landing_url']) && is_string($ctx['landing_url'])) {
+        if (!empty($ctx['session']) && is_array($ctx['session'])) {
+            $session = $ctx['session'];
+        } elseif (!empty($ctx['landing_url']) && is_string($ctx['landing_url'])) {
             $session['landing_url'] = (string) $ctx['landing_url'];
+        }
+
+        $device = [
+            'platform' => $platform,
+            'user_agent' => $ua,
+        ];
+        if (!empty($ctx['device']) && is_array($ctx['device'])) {
+            $device = array_merge($device, array_filter($ctx['device'], static fn ($v) => $v !== null && $v !== ''));
         }
 
         return [
@@ -257,10 +274,7 @@ class PayloadBuilder
                 'referrer' => $referrer,
                 'type' => $pageType,
             ],
-            'device' => [
-                'platform' => $platform,
-                'user_agent' => $ua,
-            ],
+            'device' => $device,
         ];
     }
 
@@ -333,25 +347,21 @@ class PayloadBuilder
         $attrib = isset($ctx['attribution']) && is_array($ctx['attribution']) ? $ctx['attribution'] : [];
         $first = isset($attrib['first_touch']) && is_array($attrib['first_touch']) ? $attrib['first_touch'] : [];
         $last = isset($attrib['last_touch']) && is_array($attrib['last_touch']) ? $attrib['last_touch'] : [];
+        $metaCtx = isset($attrib['meta']) && is_array($attrib['meta']) ? $attrib['meta'] : [];
 
         if ($this->config->isAttributionEnabled($storeId)) {
-            $attributionKeys = [
-                'utm_source',
-                'utm_medium',
-                'utm_campaign',
-                'utm_term',
-                'utm_content',
-                'gclid',
-                'fbclid',
-                'ttclid',
-                'msclkid',
-                'gbraid',
-                'wbraid',
-                'fbp',
-                'fbc',
-                'ttp',
-            ];
-            foreach ($attributionKeys as $mk) {
+            $window = $this->attributionWindow->readCurrent($storeId);
+            if (!empty($window['first_touch']) && is_array($window['first_touch'])) {
+                $first = array_merge($window['first_touch'], $first);
+            }
+            if (!empty($window['last_touch']) && is_array($window['last_touch'])) {
+                $last = array_merge($window['last_touch'], $last);
+            }
+            if (!empty($window['meta']) && is_array($window['meta'])) {
+                $metaCtx = array_merge($window['meta'], $metaCtx);
+            }
+
+            foreach (AttributionWindowCapture::ATTRIBUTION_KEYS as $mk) {
                 if (empty($data[$mk]) || !is_string($data[$mk])) {
                     continue;
                 }
@@ -366,12 +376,31 @@ class PayloadBuilder
             }
         }
 
-        return [
-            'attribution' => [
-                'first_touch' => $first === [] ? new \stdClass() : $first,
-                'last_touch' => $last === [] ? new \stdClass() : $last,
-            ],
+        if (!empty($data['attribution_snapshot']) && is_array($data['attribution_snapshot'])) {
+            $snap = $data['attribution_snapshot'];
+            if (!empty($snap['first_touch']) && is_array($snap['first_touch'])) {
+                $first = array_merge($snap['first_touch'], $first);
+            }
+            if (!empty($snap['last_touch']) && is_array($snap['last_touch'])) {
+                $last = array_merge($snap['last_touch'], $last);
+            }
+        }
+
+        $attribution = [
+            'first_touch' => $first === [] ? new \stdClass() : $first,
+            'last_touch' => $last === [] ? new \stdClass() : $last,
         ];
+        $meta = AttributionMetaBuilder::buildAttributionMeta(
+            $first,
+            $last,
+            $metaCtx,
+            $this->config->getAttributionLookbackDays($storeId)
+        );
+        if ($meta !== null) {
+            $attribution['meta'] = $meta;
+        }
+
+        return ['attribution' => $attribution];
     }
 
     /**
@@ -437,6 +466,18 @@ class PayloadBuilder
         $journeyId = $this->resolveJourneyId();
         if ($journeyId !== '') {
             $ext['debug'] = ['journey_id' => $journeyId];
+        }
+        return $ext;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function buildExtensionsFromData(array $data): array
+    {
+        $ext = $this->buildExtensions();
+        if (!empty($data['browser_fingerprint']) && is_array($data['browser_fingerprint'])) {
+            $ext['fingerprint'] = ['signals' => $data['browser_fingerprint']];
         }
         return $ext;
     }

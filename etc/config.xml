@@ -12,6 +12,8 @@
             <tracking>
                 <frontend_tracker>1</frontend_tracker>
                 <attribution>1</attribution>
+                <attribution_lookback_days>30</attribution_lookback_days>
+                <spa_pageviews>1</spa_pageviews>
                 <hashed_pii>0</hashed_pii>
                 <debug_mode>0</debug_mode>
                 <consent_mode>none</consent_mode>

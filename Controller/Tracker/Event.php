@@ -9,9 +9,15 @@ use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\Data\Form\FormKey;
+use Magento\Framework\UrlInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Api\ConfigInterface;
+use Panto\Source\Model\AttributionGuardrails;
+use Panto\Source\Model\AttributionWindowCapture;
 use Panto\Source\Model\EventDispatcher;
+use Panto\Source\Model\EventRegistry;
+use Panto\Source\Model\FrontendRateLimiter;
+use Panto\Source\Model\QueueBroker;
 
 class Event extends \Magento\Framework\App\Action\Action implements HttpPostActionInterface, CsrfAwareActionInterface
 {
@@ -21,7 +27,9 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         private readonly FormKey $formKey,
         private readonly EventDispatcher $dispatcher,
         private readonly ConfigInterface $config,
-        private readonly StoreManagerInterface $storeManager
+        private readonly StoreManagerInterface $storeManager,
+        private readonly AttributionWindowCapture $attributionWindow,
+        private readonly FrontendRateLimiter $rateLimiter
     ) {
         parent::__construct($context);
     }
@@ -44,6 +52,15 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         }
 
         $raw = (string) $this->getRequest()->getContent();
+        if (strlen($raw) > QueueBroker::MAX_BYTES) {
+            return $result->setData(['ok' => false, 'error' => 'payload_too_large'])->setHttpResponseCode(413);
+        }
+
+        $clientKey = (string) ($this->getRequest()->getClientIp() ?: 'unknown');
+        if (!$this->rateLimiter->isAllowed($clientKey)) {
+            return $result->setData(['ok' => false, 'error' => 'rate_limited'])->setHttpResponseCode(429);
+        }
+
         $body = $raw !== '' ? json_decode($raw, true) : [];
         if (!is_array($body)) {
             return $result->setData(['ok' => false, 'error' => 'invalid_json'])->setHttpResponseCode(400);
@@ -60,6 +77,7 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         }
 
         $allowed = [
+            'pageview',
             'product_viewed',
             'product_list_viewed',
             'search_performed',
@@ -74,87 +92,53 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         if (isset($body['context']) && is_array($body['context'])) {
             $data['context'] = $this->mergeContext($body['context'], $data['context'] ?? []);
         }
-        $capturedAttribution = [];
-        $storeIdForAttr = (int) $this->storeManager->getStore()->getId();
-        if ($this->config->isAttributionEnabled($storeIdForAttr)) {
-            foreach ([
-                'utm_source',
-                'utm_medium',
-                'utm_campaign',
-                'utm_term',
-                'utm_content',
-                'gclid',
-                'fbclid',
-                'ttclid',
-                'msclkid',
-                'gbraid',
-                'wbraid',
-                'fbp',
-                'fbc',
-            ] as $k) {
+
+        $storeId = (int) $this->storeManager->getStore()->getId();
+        $store = $this->storeManager->getStore($storeId);
+        $shopHost = (string) (parse_url((string) $store->getBaseUrl(UrlInterface::URL_TYPE_WEB), PHP_URL_HOST) ?: $store->getCode());
+
+        $incoming = [];
+        if ($this->config->isAttributionEnabled($storeId)) {
+            foreach (AttributionWindowCapture::ATTRIBUTION_KEYS as $k) {
                 if (isset($body[$k]) && is_string($body[$k]) && $body[$k] !== '') {
+                    $incoming[$k] = $body[$k];
                     $data[$k] = $body[$k];
-                    $capturedAttribution[$k] = $body[$k];
                 }
             }
         }
-        if ($capturedAttribution !== []) {
-            if (!isset($data['context']) || !is_array($data['context'])) {
-                $data['context'] = [];
-            }
-            if (!isset($data['context']['attribution']) || !is_array($data['context']['attribution'])) {
-                $data['context']['attribution'] = [];
-            }
 
-            $first = isset($data['context']['attribution']['first_touch']) && is_array($data['context']['attribution']['first_touch'])
-                ? $data['context']['attribution']['first_touch']
-                : [];
-            $last = isset($data['context']['attribution']['last_touch']) && is_array($data['context']['attribution']['last_touch'])
-                ? $data['context']['attribution']['last_touch']
-                : [];
-
-            foreach ($capturedAttribution as $key => $value) {
-                if (!isset($first[$key]) || $first[$key] === '') {
-                    $first[$key] = $value;
-                }
-                $last[$key] = $value;
-            }
-
-            $capturedAt = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z');
-            if (!isset($first['captured_at']) || !is_string($first['captured_at']) || $first['captured_at'] === '') {
-                $first['captured_at'] = $capturedAt;
-            }
-            $last['captured_at'] = $capturedAt;
-
-            $landingUrl = '';
-            if (isset($data['context']['page']) && is_array($data['context']['page']) && isset($data['context']['page']['url'])) {
-                $landingUrl = (string) $data['context']['page']['url'];
-            }
-            if ($landingUrl !== '') {
-                if (!isset($first['landing_url']) || !is_string($first['landing_url']) || $first['landing_url'] === '') {
-                    $first['landing_url'] = $landingUrl;
-                }
-                $last['landing_url'] = $landingUrl;
-            }
-
-            $referrer = '';
-            if (isset($data['context']['page']) && is_array($data['context']['page']) && isset($data['context']['page']['referrer'])) {
-                $referrer = (string) $data['context']['page']['referrer'];
-            } elseif (isset($data['context']['referrer'])) {
-                $referrer = (string) $data['context']['referrer'];
-            }
-            if ($referrer !== '') {
-                if (!isset($first['referrer']) || !is_string($first['referrer']) || $first['referrer'] === '') {
-                    $first['referrer'] = $referrer;
-                }
-                $last['referrer'] = $referrer;
-            }
-
-            $data['context']['attribution']['first_touch'] = $first;
-            $data['context']['attribution']['last_touch'] = $last;
+        $landingUrl = '';
+        $referrer = '';
+        if (isset($data['context']['page']['url']) && is_string($data['context']['page']['url'])) {
+            $landingUrl = $data['context']['page']['url'];
+        }
+        if (isset($data['context']['page']['referrer']) && is_string($data['context']['page']['referrer'])) {
+            $referrer = $data['context']['page']['referrer'];
         }
 
-        $this->dispatcher->dispatch($eventName, $data, '', true, (int) $this->storeManager->getStore()->getId());
+        $touchParams = array_merge($incoming, ['referrer' => $referrer]);
+        if (!AttributionGuardrails::shouldUpdateLastTouch($touchParams, $shopHost)) {
+            $window = $this->attributionWindow->readCurrent($storeId);
+        } else {
+            $window = $this->attributionWindow->capture($storeId, $incoming, $shopHost, $landingUrl, $referrer);
+        }
+
+        if (!isset($data['context']) || !is_array($data['context'])) {
+            $data['context'] = [];
+        }
+        $data['context']['attribution'] = [
+            'first_touch' => $window['first_touch'],
+            'last_touch' => $window['last_touch'],
+            'meta' => $window['meta'],
+        ];
+
+        $missing = EventRegistry::getMissingRequired($eventName, $data);
+        if ($missing !== []) {
+            return $result->setData(['ok' => false, 'error' => 'validation_failed', 'missing' => $missing])
+                ->setHttpResponseCode(422);
+        }
+
+        $this->dispatcher->dispatch($eventName, $data, '', true, $storeId);
         return $result->setData(['ok' => true]);
     }
 

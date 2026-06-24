@@ -37,6 +37,16 @@
                     <label>Enable Attribution Enrichment</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
+                <field id="attribution_lookback_days" translate="label" type="text" sortOrder="25" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Attribution Lookback (days)</label>
+                    <comment>Default 30. Cookie window for first/last touch persistence.</comment>
+                    <validate>validate-number validate-greater-than-zero</validate>
+                </field>
+                <field id="spa_pageviews" translate="label" type="select" sortOrder="28" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Enable SPA Pageviews</label>
+                    <comment>Track history.pushState / popstate route changes as pageviews.</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
                 <field id="hashed_pii" translate="label" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Enable Hashed PII (order payloads)</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>

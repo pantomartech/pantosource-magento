@@ -26,8 +26,25 @@ class ConversionDedupeRepository
     {
         $conn = $this->resource->getConnection();
         $t = $this->resource->getTableName(self::TABLE);
-        $sql = "INSERT INTO {$t} (order_id, purchase_emitted, updated_at) VALUES (?, 1, UTC_TIMESTAMP())
+        $sql = "INSERT INTO {$t} (order_id, purchase_emitted, fulfilled_emitted, updated_at) VALUES (?, 1, 0, UTC_TIMESTAMP())
                 ON DUPLICATE KEY UPDATE purchase_emitted = 1, updated_at = UTC_TIMESTAMP()";
+        $conn->query($sql, [$orderId]);
+    }
+
+    public function isFulfilledEmitted(int $orderId): bool
+    {
+        $conn = $this->resource->getConnection();
+        $t = $this->resource->getTableName(self::TABLE);
+        $v = $conn->fetchOne("SELECT fulfilled_emitted FROM {$t} WHERE order_id = ?", [$orderId]);
+        return (int) $v === 1;
+    }
+
+    public function markFulfilledEmitted(int $orderId): void
+    {
+        $conn = $this->resource->getConnection();
+        $t = $this->resource->getTableName(self::TABLE);
+        $sql = "INSERT INTO {$t} (order_id, purchase_emitted, fulfilled_emitted, updated_at) VALUES (?, 0, 1, UTC_TIMESTAMP())
+                ON DUPLICATE KEY UPDATE fulfilled_emitted = 1, updated_at = UTC_TIMESTAMP()";
         $conn->query($sql, [$orderId]);
     }
 }

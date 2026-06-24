@@ -13,6 +13,8 @@ interface ConfigInterface
     public const XML_PATH_HASHED_PII = 'pantosource/tracking/hashed_pii';
     public const XML_PATH_DEBUG = 'pantosource/tracking/debug_mode';
     public const XML_PATH_CONSENT_MODE = 'pantosource/tracking/consent_mode';
+    public const XML_PATH_ATTRIBUTION_LOOKBACK_DAYS = 'pantosource/tracking/attribution_lookback_days';
+    public const XML_PATH_SPA_PAGEVIEWS = 'pantosource/tracking/spa_pageviews';
 
     public function isEnabled(?int $storeId = null): bool;
 
@@ -34,4 +36,8 @@ interface ConfigInterface
     public function hasTrackingConsent(?int $storeId = null): bool;
 
     public function getEventsEndpointUrl(?int $storeId = null): string;
+
+    public function getAttributionLookbackDays(?int $storeId = null): int;
+
+    public function isSpaPageviewsEnabled(?int $storeId = null): bool;
 }

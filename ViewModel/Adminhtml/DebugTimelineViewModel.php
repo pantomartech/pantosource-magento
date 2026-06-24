@@ -30,6 +30,8 @@ class DebugTimelineViewModel implements ArgumentInterface
             'source' => (string) $this->request->getParam('source', ''),
             'status' => (string) $this->request->getParam('status', ''),
             'event_name' => (string) $this->request->getParam('event_name', ''),
+            'attribution_source' => (string) $this->request->getParam('attribution_source', ''),
+            'touch_type' => (string) $this->request->getParam('touch_type', ''),
         ];
     }
 
@@ -40,7 +42,14 @@ class DebugTimelineViewModel implements ArgumentInterface
     {
         $f = $this->getFilters();
         $safeEvent = preg_replace('/[%_]/', '', $f['event_name']);
-        return $this->timeline->fetchRecentFiltered(400, $f['source'], $f['status'], $safeEvent);
+        return $this->timeline->fetchRecentFiltered(
+            400,
+            $f['source'],
+            $f['status'],
+            $safeEvent,
+            $f['attribution_source'] ?? '',
+            $f['touch_type'] ?? ''
+        );
     }
 
     public function getIndexUrl(): string

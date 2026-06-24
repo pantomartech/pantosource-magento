@@ -105,4 +105,23 @@ class Config implements ConfigInterface
         $base = $this->getIngestionBaseUrl($storeId);
         return $base === '' ? '' : $base . '/events';
     }
+
+    public function getAttributionLookbackDays(?int $storeId = null): int
+    {
+        $v = (int) $this->scopeConfig->getValue(
+            self::XML_PATH_ATTRIBUTION_LOOKBACK_DAYS,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+        return $v > 0 ? $v : AttributionMetaBuilder::ATTRIBUTION_LOOKBACK_DAYS;
+    }
+
+    public function isSpaPageviewsEnabled(?int $storeId = null): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            self::XML_PATH_SPA_PAGEVIEWS,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
 }

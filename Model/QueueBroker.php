@@ -13,6 +13,7 @@ class QueueBroker
     public const MAX_BYTES = 20000;
     public const MAX_ATTEMPTS = 5;
     public const MAX_ROWS = 500;
+    public const LEASE_SECONDS = 60;
 
     public function __construct(
         private readonly ResourceConnection $resource,
@@ -91,7 +92,7 @@ class QueueBroker
     /**
      * @return list<array<string, mixed>>
      */
-    public function fetchDue(int $limit = 25): array
+    public function claimBatch(int $limit = 25): array
     {
         $conn = $this->resource->getConnection();
         $table = $this->resource->getTableName(self::TABLE);
@@ -99,10 +100,53 @@ class QueueBroker
         $select = $conn->select()
             ->from($table)
             ->where('next_attempt_at <= ?', $now)
+            ->where('(leased_until IS NULL OR leased_until = 0 OR leased_until <= ?)', $now)
             ->order('entity_id ASC')
             ->limit($limit);
         $rows = $conn->fetchAll($select);
-        return is_array($rows) ? $rows : [];
+        if (!is_array($rows) || $rows === []) {
+            return [];
+        }
+        $claimed = [];
+        $leaseUntil = $now + self::LEASE_SECONDS;
+        foreach ($rows as $row) {
+            $entityId = (int) ($row['entity_id'] ?? 0);
+            if ($entityId <= 0) {
+                continue;
+            }
+            $token = bin2hex(random_bytes(16));
+            $updated = $conn->update(
+                $table,
+                ['leased_until' => $leaseUntil, 'lease_token' => $token],
+                [
+                    'entity_id = ?' => $entityId,
+                    '(leased_until IS NULL OR leased_until = 0 OR leased_until <= ?)' => $now,
+                ]
+            );
+            if ($updated === 1) {
+                $row['lease_token'] = $token;
+                $claimed[] = $row;
+            }
+        }
+        return $claimed;
+    }
+
+    public function clearLease(int $entityId): void
+    {
+        $table = $this->resource->getTableName(self::TABLE);
+        $this->resource->getConnection()->update(
+            $table,
+            ['leased_until' => 0, 'lease_token' => null],
+            ['entity_id = ?' => $entityId]
+        );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function fetchDue(int $limit = 25): array
+    {
+        return $this->claimBatch($limit);
     }
 
     public function deleteByEntityId(int $entityId): void

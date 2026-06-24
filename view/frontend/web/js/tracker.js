@@ -51,14 +51,81 @@ define([], function () {
     function getMetaBrowserCookies() {
         var fbp = readCookie('_fbp');
         var fbc = readCookie('_fbc');
+        var ttp = readCookie('_ttp');
         var out = {};
         if (fbp) {
             out.fbp = fbp;
         }
         if (fbc) {
             out.fbc = fbc;
+        } else {
+            var qs = new URLSearchParams(window.location.search || '');
+            var fbclid = qs.get('fbclid');
+            if (fbclid) {
+                out.fbc = 'fb.1.' + Date.now() + '.' + fbclid;
+            }
+        }
+        if (ttp) {
+            out.ttp = ttp;
         }
         return out;
+    }
+
+    function getOrCaptureJourneyId() {
+        var param = new URLSearchParams(window.location.search || '').get('panto_journey_id');
+        if (param && /^[0-9a-f-]{36}$/i.test(param)) {
+            writeCookie('panto_journey_id', param, 365);
+            return param;
+        }
+        var existing = readCookie('panto_journey_id');
+        if (existing) {
+            return existing;
+        }
+        var id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = (Math.random() * 16) | 0;
+            var v = c === 'x' ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+        });
+        writeCookie('panto_journey_id', id, 365);
+        return id;
+    }
+
+    var BROWSER_CTX_COOKIE = 'pantosource_browser_ctx';
+
+    function writeBrowserContextCookie() {
+        try {
+            var landing = sessionStorage.getItem('pantosource_session_landing');
+            if (!landing) {
+                landing = window.location.href || '';
+                sessionStorage.setItem('pantosource_session_landing', landing);
+            }
+            var payload = {
+                session: { landing_url: landing },
+                device: {
+                    language: (navigator.language || ''),
+                    screen_width: window.screen ? window.screen.width : 0,
+                    screen_height: window.screen ? window.screen.height : 0,
+                    color_depth: window.screen ? window.screen.colorDepth : 0
+                },
+                fingerprint: {
+                    screen_res: window.screen ? window.screen.width + 'x' + window.screen.height : '',
+                    color_depth: window.screen ? window.screen.colorDepth : 0,
+                    language: navigator.language || '',
+                    platform: navigator.platform || ''
+                }
+            };
+            var expires = new Date();
+            expires.setTime(expires.getTime() + 30 * 60 * 1000);
+            document.cookie =
+                BROWSER_CTX_COOKIE +
+                '=' +
+                encodeURIComponent(JSON.stringify(payload)) +
+                ';expires=' +
+                expires.toUTCString() +
+                ';path=/;SameSite=Lax';
+        } catch (e) {
+            /* sessionStorage/cookie disabled */
+        }
     }
 
     function getAttributionFromUrl() {
@@ -156,6 +223,8 @@ define([], function () {
         }
         payloadData.anonymous_id = getOrCreateAnonymousId();
         payloadData.session_id = getOrCreateSessionId();
+        writeBrowserContextCookie();
+        var journeyId = getOrCaptureJourneyId();
 
         var payload = {
             form_key: cfg.formKey,
@@ -163,6 +232,9 @@ define([], function () {
             data: payloadData,
             context: buildPageContext(cfg)
         };
+        if (journeyId) {
+            payloadData.journey_id = journeyId;
+        }
         Object.keys(attribution).forEach(function (k) {
             payload[k] = attribution[k];
         });
@@ -177,9 +249,45 @@ define([], function () {
         fetch(cfg.eventUrl, {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-Trace-Id': journeyId || ''
+            },
             body: JSON.stringify(payload)
         }).catch(function () {});
+    }
+
+    function trackPageview(cfg, fired, pathKey) {
+        var key = pathKey || window.location.pathname + window.location.search;
+        once(fired, 'pageview:' + key, function () {
+            postEvent(cfg, 'pageview', { page_type: (cfg.flags && cfg.flags.pageTypeHint) || 'page' });
+        });
+    }
+
+    function setupSpaPageviews(cfg, fired) {
+        if (!cfg.flags || !cfg.flags.enableSpaPageviews) {
+            return;
+        }
+        var lastPath = window.location.pathname + window.location.search;
+        function checkPath() {
+            var current = window.location.pathname + window.location.search;
+            if (current !== lastPath) {
+                lastPath = current;
+                trackPageview(cfg, fired, current);
+            }
+        }
+        var origPush = history.pushState;
+        var origReplace = history.replaceState;
+        history.pushState = function () {
+            origPush.apply(history, arguments);
+            checkPath();
+        };
+        history.replaceState = function () {
+            origReplace.apply(history, arguments);
+            checkPath();
+        };
+        window.addEventListener('popstate', checkPath);
     }
 
     function once(fired, key, fn) {
@@ -233,6 +341,9 @@ define([], function () {
         var fired = {};
 
         document.addEventListener('DOMContentLoaded', function () {
+            trackPageview(cfg, fired);
+            setupSpaPageviews(cfg, fired);
+
             if (cfg.flags && cfg.flags.isProduct && cfg.product && cfg.product.id) {
                 once(fired, 'product_viewed', function () {
                     postEvent(cfg, 'product_viewed', {

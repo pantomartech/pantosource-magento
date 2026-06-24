@@ -58,4 +58,7 @@
     <event name="wishlist_add_product">
         <observer name="pantosource_wishlist_add" instance="Panto\Source\Observer\WishlistAddObserver"/>
     </event>
+    <event name="customer_account_edited">
+        <observer name="pantosource_customer_updated" instance="Panto\Source\Observer\CustomerUpdateObserver"/>
+    </event>
 </config>

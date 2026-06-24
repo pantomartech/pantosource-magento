@@ -8,9 +8,11 @@ use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Sales\Api\Data\OrderInterface;
 use Panto\Source\Helper\StorefrontContext;
+use Panto\Source\Model\CheckoutIdentityRepository;
 use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
 use Panto\Source\Model\HashedPiiEnricher;
+use Panto\Source\Model\OrderEnrichment;
 use Panto\Source\Model\OrderLineSerializer;
 
 class CheckoutSubmitObserver implements ObserverInterface
@@ -20,7 +22,9 @@ class CheckoutSubmitObserver implements ObserverInterface
         private readonly HttpRequest $request,
         private readonly OrderLineSerializer $orderLineSerializer,
         private readonly HashedPiiEnricher $hashedPiiEnricher,
-        private readonly CustomerProfileBuilder $customerProfileBuilder
+        private readonly CustomerProfileBuilder $customerProfileBuilder,
+        private readonly CheckoutIdentityRepository $checkoutIdentity,
+        private readonly OrderEnrichment $orderEnrichment
     ) {
     }
 
@@ -32,8 +36,11 @@ class CheckoutSubmitObserver implements ObserverInterface
             return;
         }
 
+        $orderId = (int) $order->getEntityId();
+        $this->checkoutIdentity->copySessionToOrder($orderId);
+
         $data = [
-            'order_id' => (int) $order->getEntityId(),
+            'order_id' => $orderId,
             'order_increment_id' => (string) $order->getIncrementId(),
             'status' => (string) $order->getStatus(),
             'total' => (string) $order->getGrandTotal(),
@@ -43,10 +50,13 @@ class CheckoutSubmitObserver implements ObserverInterface
             'order_totals' => $this->orderLineSerializer->orderTotals($order),
             'billing_email' => (string) $order->getCustomerEmail(),
             'occurrence' => 'order_created',
+            'is_new_customer' => $this->orderEnrichment->isNewCustomer($order),
+            'coupon_codes' => $this->orderEnrichment->getCouponCodes($order),
             'context' => StorefrontContext::fromRequest($this->request, 'checkout', 'Order placed'),
             'customer_profile' => $this->customerProfileBuilder->profileFromOrder($order),
         ];
         $data = $this->hashedPiiEnricher->enrich($order, $data, (int) $order->getStoreId());
+        $data = $this->checkoutIdentity->resolveIdentityFromOrder($data, $orderId);
 
         $this->dispatcher->dispatch('magento_checkout_order_placed', $data);
     }

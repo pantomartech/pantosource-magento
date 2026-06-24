@@ -42,6 +42,16 @@ $debugIndexUrl = $viewModel->getIndexUrl();
         <input class="admin__control-text" id="flt_event" name="event_name" type="text"
                value="<?= $block->escapeHtmlAttr($filters['event_name']) ?>"/>
     </div>
+    <div class="admin__field admin__field-inline">
+        <label class="admin__field-label" for="flt_attr"><span><?= $block->escapeHtml(__('Attribution source')) ?></span></label>
+        <input class="admin__control-text" id="flt_attr" name="attribution_source" type="text"
+               value="<?= $block->escapeHtmlAttr($filters['attribution_source'] ?? '') ?>"/>
+    </div>
+    <div class="admin__field admin__field-inline">
+        <label class="admin__field-label" for="flt_touch"><span><?= $block->escapeHtml(__('Touch type')) ?></span></label>
+        <input class="admin__control-text" id="flt_touch" name="touch_type" type="text"
+               value="<?= $block->escapeHtmlAttr($filters['touch_type'] ?? '') ?>"/>
+    </div>
     <button type="submit" class="action-secondary"><?= $block->escapeHtml(__('Apply filters')) ?></button>
 </form>
 

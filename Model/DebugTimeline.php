@@ -15,7 +15,8 @@ class DebugTimeline
     public function __construct(
         private readonly ResourceConnection $resource,
         private readonly ConfigInterface $config,
-        private readonly Random $random
+        private readonly Random $random,
+        private readonly DebugAttributionContext $debugAttributionContext
     ) {
     }
 
@@ -64,8 +65,14 @@ class DebugTimeline
     /**
      * @return list<array<string, mixed>>
      */
-    public function fetchRecentFiltered(int $limit, string $source, string $status, string $eventName): array
-    {
+    public function fetchRecentFiltered(
+        int $limit,
+        string $source,
+        string $status,
+        string $eventName,
+        string $attributionSource = '',
+        string $touchType = ''
+    ): array {
         $conn = $this->resource->getConnection();
         $table = $this->resource->getTableName(self::TABLE);
         $select = $conn->select()
@@ -85,7 +92,25 @@ class DebugTimeline
             $select->where('event_name LIKE ?', '%' . $eventName . '%');
         }
         $rows = $conn->fetchAll($select);
-        return is_array($rows) ? $rows : [];
+        if (!is_array($rows)) {
+            return [];
+        }
+        $out = [];
+        foreach ($rows as $row) {
+            $payload = [];
+            if (!empty($row['payload_json'])) {
+                $decoded = json_decode((string) $row['payload_json'], true);
+                if (is_array($decoded)) {
+                    $payload = $decoded;
+                }
+            }
+            $row['debug_context'] = $this->debugAttributionContext->buildContext($payload);
+            if (!$this->debugAttributionContext->rowMatchesFilters($row, $attributionSource, $touchType)) {
+                continue;
+            }
+            $out[] = $row;
+        }
+        return $out;
     }
 
     public function clear(): void

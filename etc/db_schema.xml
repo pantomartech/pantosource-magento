@@ -10,6 +10,8 @@
         <column xsi:type="int" name="next_attempt_at" unsigned="true" nullable="false" default="0" comment="Unix time next try"/>
         <column xsi:type="text" name="last_error" nullable="true" comment="Last error message"/>
         <column xsi:type="smallint" name="store_id" unsigned="true" nullable="false" default="0" comment="Store view id (0 = legacy row, use default store in cron)"/>
+        <column xsi:type="int" name="leased_until" unsigned="true" nullable="false" default="0" comment="Unix lease expiry"/>
+        <column xsi:type="varchar" name="lease_token" nullable="true" length="64" comment="Worker lease token"/>
         <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP" comment="Created"/>
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="entity_id"/>
@@ -61,7 +63,18 @@
     <table name="pantosource_order_dedupe" resource="default" engine="innodb" comment="Conversion dedupe flags">
         <column xsi:type="int" name="order_id" unsigned="true" nullable="false" comment="Sales order entity_id"/>
         <column xsi:type="smallint" name="purchase_emitted" unsigned="true" nullable="false" default="0"/>
+        <column xsi:type="smallint" name="fulfilled_emitted" unsigned="true" nullable="false" default="0"/>
         <column xsi:type="timestamp" name="updated_at" on_update="true" nullable="false" default="CURRENT_TIMESTAMP"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="order_id"/>
+        </constraint>
+    </table>
+    <table name="pantosource_order_identity" resource="default" engine="innodb" comment="Checkout identity stitching">
+        <column xsi:type="int" name="order_id" unsigned="true" nullable="false" comment="Sales order entity_id"/>
+        <column xsi:type="varchar" name="anonymous_id" nullable="true" length="128"/>
+        <column xsi:type="varchar" name="session_id" nullable="true" length="128"/>
+        <column xsi:type="text" name="attribution_snapshot_json" nullable="true"/>
+        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"/>
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="order_id"/>
         </constraint>

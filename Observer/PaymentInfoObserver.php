@@ -16,6 +16,8 @@ use Panto\Source\Model\EventDispatcher;
  */
 class PaymentInfoObserver implements ObserverInterface
 {
+    private const SESSION_KEY = 'pantosource_payment_info_sent';
+
     public function __construct(
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
@@ -25,6 +27,9 @@ class PaymentInfoObserver implements ObserverInterface
 
     public function execute(Observer $observer): void
     {
+        if ($this->checkoutSession->getData(self::SESSION_KEY)) {
+            return;
+        }
         $payment = $observer->getEvent()->getPayment();
         if (!$payment) {
             return;
@@ -65,6 +70,7 @@ class PaymentInfoObserver implements ObserverInterface
             'items'          => $items,
             'context'        => StorefrontContext::fromRequest($this->request, 'checkout', 'Checkout'),
         ];
+        $this->checkoutSession->setData(self::SESSION_KEY, 1);
         $this->dispatcher->dispatch('add_payment_info', $data);
     }
 }

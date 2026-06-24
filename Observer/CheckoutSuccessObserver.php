@@ -9,9 +9,11 @@ use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\ConversionDedupeRepository;
+use Panto\Source\Model\CheckoutIdentityRepository;
 use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
 use Panto\Source\Model\HashedPiiEnricher;
+use Panto\Source\Model\OrderEnrichment;
 use Panto\Source\Model\OrderLineSerializer;
 
 class CheckoutSuccessObserver implements ObserverInterface
@@ -23,7 +25,9 @@ class CheckoutSuccessObserver implements ObserverInterface
         private readonly OrderLineSerializer $orderLineSerializer,
         private readonly ConversionDedupeRepository $dedupeRepository,
         private readonly HashedPiiEnricher $hashedPiiEnricher,
-        private readonly CustomerProfileBuilder $customerProfileBuilder
+        private readonly CustomerProfileBuilder $customerProfileBuilder,
+        private readonly CheckoutIdentityRepository $checkoutIdentity,
+        private readonly OrderEnrichment $orderEnrichment
     ) {
     }
 
@@ -56,10 +60,13 @@ class CheckoutSuccessObserver implements ObserverInterface
             'order_totals' => $this->orderLineSerializer->orderTotals($order),
             'billing_email' => (string) $order->getCustomerEmail(),
             'occurrence' => 'first',
+            'is_new_customer' => $this->orderEnrichment->isNewCustomer($order),
+            'coupon_codes' => $this->orderEnrichment->getCouponCodes($order),
             'context' => StorefrontContext::fromRequest($this->request, 'checkout', 'Thank you'),
             'customer_profile' => $this->customerProfileBuilder->profileFromOrder($order),
         ];
         $data = $this->hashedPiiEnricher->enrich($order, $data, (int) $order->getStoreId());
+        $data = $this->checkoutIdentity->resolveIdentityFromOrder($data, $orderId);
 
         $ok = $this->dispatcher->dispatch('magento_purchase_completed', $data, 'conversion');
         if ($ok) {
