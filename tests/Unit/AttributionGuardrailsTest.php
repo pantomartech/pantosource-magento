@@ -26,7 +26,7 @@ final class AttributionGuardrailsTest extends TestCase
         $this->assertFalse($ok);
     }
 
-    public function testUtmStillUpdatesDespiteGatewayReferrer(): void
+    public function testUtmDoesNotOverridePaymentGatewayReferrerBlock(): void
     {
         $ok = AttributionGuardrails::shouldUpdateLastTouch(
             [
@@ -35,7 +35,7 @@ final class AttributionGuardrailsTest extends TestCase
             ],
             'example.com'
         );
-        $this->assertTrue($ok);
+        $this->assertFalse($ok);
     }
 
     public function testSelfReferrerWithoutUtmBlocked(): void
