@@ -10,6 +10,10 @@
             <module name="Magento_Sales"/>
             <module name="Magento_Catalog"/>
             <module name="Magento_CatalogSearch"/>
+            <module name="Magento_Search"/>
+            <module name="Magento_Backend"/>
+            <module name="Magento_Cron"/>
+            <module name="Magento_Wishlist"/>
         </sequence>
     </module>
 </config>

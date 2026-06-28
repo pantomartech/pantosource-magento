@@ -333,14 +333,21 @@ define([], function () {
         );
     }
 
-    return function (config) {
-        if (!config || !config.eventUrl || !config.formKey) {
+    function onReady(fn) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fn);
+        } else {
+            fn();
+        }
+    }
+
+    function startTracker(cfg) {
+        if (!cfg || !cfg.eventUrl || !cfg.formKey) {
             return;
         }
-        var cfg = config;
         var fired = {};
 
-        document.addEventListener('DOMContentLoaded', function () {
+        onReady(function () {
             trackPageview(cfg, fired);
             setupSpaPageviews(cfg, fired);
 
@@ -390,5 +397,39 @@ define([], function () {
 
             installAddToCartClicks(cfg, fired);
         });
+    }
+
+    function loadConfigFromUrl(configUrl) {
+        fetch(configUrl, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' }
+        })
+            .then(function (response) {
+                if (response.status === 204 || !response.ok) {
+                    return null;
+                }
+                return response.json();
+            })
+            .then(function (cfg) {
+                if (!cfg) {
+                    return;
+                }
+                startTracker(cfg);
+            })
+            .catch(function () {});
+    }
+
+    return function (config) {
+        if (!config) {
+            return;
+        }
+
+        if (config.configUrl) {
+            loadConfigFromUrl(config.configUrl);
+            return;
+        }
+
+        startTracker(config);
     };
 });

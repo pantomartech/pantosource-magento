@@ -6,6 +6,7 @@
             <block class="Panto\Source\Block\Tracker"
                    name="pantosource.tracker"
                    template="Panto_Source::tracker.phtml"
+                   cacheable="true"
                    ifconfig="pantosource/tracking/frontend_tracker"/>
         </referenceContainer>
     </body>
