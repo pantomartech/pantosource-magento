@@ -4,13 +4,15 @@ declare(strict_types=1);
 namespace Panto\Source\Model;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Store\Model\ScopeInterface;
 use Panto\Source\Api\ConfigInterface;
 
 class Config implements ConfigInterface
 {
     public function __construct(
-        private readonly ScopeConfigInterface $scopeConfig
+        private readonly ScopeConfigInterface $scopeConfig,
+        private readonly EncryptorInterface $encryptor
     ) {
     }
 
@@ -35,11 +37,16 @@ class Config implements ConfigInterface
 
     public function getApiKey(?int $storeId = null): string
     {
-        return (string) $this->scopeConfig->getValue(
+        $value = (string) $this->scopeConfig->getValue(
             self::XML_PATH_API_KEY,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
+        if ($value === '') {
+            return '';
+        }
+
+        return (string) $this->encryptor->decrypt($value);
     }
 
     public function isFrontendTrackerEnabled(?int $storeId = null): bool
