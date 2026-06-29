@@ -232,7 +232,10 @@ class PayloadBuilder
             $q = parse_url($url, PHP_URL_QUERY);
             $path = ($p ?: '/') . ($q ? '?' . $q : '');
         }
-        $pageUrl = (string) ($ctx['page']['url'] ?? $url);
+        $pageUrl = (string) ($ctx['page']['url'] ?? '');
+        if ($pageUrl === '') {
+            $pageUrl = $url;
+        }
         $title = (string) ($ctx['page']['title'] ?? '');
         $referrer = (string) ($ctx['page']['referrer'] ?? $ctx['referrer'] ?? '');
         $pageType = (string) ($ctx['page']['type'] ?? $ctx['page_type'] ?? '');
