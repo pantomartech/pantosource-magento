@@ -181,6 +181,14 @@ define([], function () {
         };
     }
 
+    function urlWithFormKey(url, formKey) {
+        if (!url || !formKey) {
+            return url;
+        }
+        var sep = url.indexOf('?') >= 0 ? '&' : '?';
+        return url + sep + 'form_key=' + encodeURIComponent(formKey);
+    }
+
     function sendMarker(cfg, actionName, eventName, data) {
         if (!cfg.markerUrl || !cfg.formKey) {
             return;
@@ -191,7 +199,7 @@ define([], function () {
             event_name: eventName || '',
             data: data || {}
         });
-        fetch(cfg.markerUrl, {
+        fetch(urlWithFormKey(cfg.markerUrl, cfg.formKey), {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -246,7 +254,7 @@ define([], function () {
             sendMarker(cfg, 'frontend_send', eventName, payloadData);
         }
 
-        fetch(cfg.eventUrl, {
+        fetch(urlWithFormKey(cfg.eventUrl, cfg.formKey), {
             method: 'POST',
             credentials: 'same-origin',
             headers: {
@@ -255,7 +263,17 @@ define([], function () {
                 'X-Trace-Id': journeyId || ''
             },
             body: JSON.stringify(payload)
-        }).catch(function () {});
+        })
+            .then(function (response) {
+                if (cfg.debug) {
+                    console.warn('[PantoSource] tracker/event HTTP', response.status, response.url);
+                }
+            })
+            .catch(function (err) {
+                if (cfg.debug) {
+                    console.warn('[PantoSource] tracker/event failed', err);
+                }
+            });
     }
 
     function trackPageview(cfg, fired, pathKey) {
