@@ -31,9 +31,12 @@ class Marker extends \Magento\Framework\App\Action\Action implements HttpPostAct
         return null;
     }
 
+    /**
+     * Skip framework CSRF; form_key is validated from the JSON body in execute().
+     */
     public function validateForCsrf(RequestInterface $request): ?bool
     {
-        return null;
+        return true;
     }
 
     public function execute()

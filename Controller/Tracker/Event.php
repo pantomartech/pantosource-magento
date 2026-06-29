@@ -39,9 +39,13 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         return null;
     }
 
+    /**
+     * Skip framework CSRF (expects form_key in POST fields). This action accepts JSON
+     * with form_key in the body; execute() validates it with hash_equals.
+     */
     public function validateForCsrf(RequestInterface $request): ?bool
     {
-        return null;
+        return true;
     }
 
     public function execute()
