@@ -4,10 +4,12 @@ declare(strict_types=1);
 namespace Panto\Source\Observer;
 
 use Magento\Catalog\Api\CategoryRepositoryInterface;
+use Magento\Framework\App\State;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Store\Model\StoreManagerInterface;
+use Panto\Source\Helper\CartAddEmissionGate;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\EventDispatcher;
 
@@ -17,14 +19,23 @@ class CartAddObserver implements ObserverInterface
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
         private readonly StoreManagerInterface $storeManager,
-        private readonly CategoryRepositoryInterface $categoryRepository
+        private readonly CategoryRepositoryInterface $categoryRepository,
+        private readonly State $appState,
+        private readonly CartAddEmissionGate $emissionGate
     ) {
     }
 
     public function execute(Observer $observer): void
     {
-        $item = $observer->getEvent()->getQuoteItem();
-        if (!$item || !$item->getProductId()) {
+        try {
+            if ($this->appState->getAreaCode() === 'adminhtml') {
+                return;
+            }
+        } catch (\Throwable) {
+        }
+
+        $item = $this->resolveQuoteItem($observer);
+        if ($item === null || !method_exists($item, 'getProductId') || !$item->getProductId()) {
             return;
         }
 
@@ -36,12 +47,6 @@ class CartAddObserver implements ObserverInterface
         $productId = (int) $item->getProductId();
         $category = $this->resolveCategory($item);
 
-        try {
-            $currency = (string) $this->storeManager->getStore()->getCurrentCurrencyCode();
-        } catch (\Throwable) {
-            $currency = '';
-        }
-
         $cartId = 0;
         try {
             $quote = $item->getQuote();
@@ -52,6 +57,17 @@ class CartAddObserver implements ObserverInterface
             }
         } catch (\Throwable) {
             $cartId = (int) $item->getQuoteId();
+        }
+
+        $itemId = method_exists($item, 'getId') ? (int) $item->getId() : 0;
+        if (!$this->emissionGate->shouldEmit(CartAddEmissionGate::dedupeKey($itemId, $cartId, $productId, $qty))) {
+            return;
+        }
+
+        try {
+            $currency = (string) $this->storeManager->getStore()->getCurrentCurrencyCode();
+        } catch (\Throwable) {
+            $currency = '';
         }
 
         $line = [
@@ -70,7 +86,7 @@ class CartAddObserver implements ObserverInterface
             'title' => $title,
             'unit_price' => $unitPrice,
             'currency' => $currency,
-            'quote_item_id' => (int) $item->getId(),
+            'quote_item_id' => $itemId,
             'category' => $category,
             'items' => [$line],
             'context' => StorefrontContext::fromRequest($this->request, 'cart', ''),
@@ -79,6 +95,21 @@ class CartAddObserver implements ObserverInterface
             $data['cart_id'] = $cartId;
         }
         $this->dispatcher->dispatch('magento_add_to_cart', $data);
+    }
+
+    private function resolveQuoteItem(Observer $observer): mixed
+    {
+        $event = $observer->getEvent();
+        $item = $event->getQuoteItem();
+        if (is_object($item)) {
+            return $item;
+        }
+        $items = $event->getItems();
+        if (!is_array($items) || $items === []) {
+            return null;
+        }
+        $last = $items[array_key_last($items)];
+        return is_object($last) ? $last : null;
     }
 
     private function resolveCategory(mixed $item): string

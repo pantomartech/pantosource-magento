@@ -7,6 +7,7 @@ use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
+use Panto\Source\Helper\QuoteCommerceSnapshot;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\EventDispatcher;
 
@@ -40,34 +41,17 @@ class PaymentInfoObserver implements ObserverInterface
         } catch (\Throwable) {
         }
 
-        $cartTotal = '';
-        $currency = '';
-        $items = [];
+        $snapshot = ['cart_total' => '', 'currency' => '', 'items' => []];
         try {
-            $quote = $this->checkoutSession->getQuote();
-            if ($quote && $quote->getId()) {
-                $cartTotal = (string) $quote->getGrandTotal();
-                $currency = (string) $quote->getQuoteCurrencyCode();
-                foreach ($quote->getAllVisibleItems() as $item) {
-                    $qty = (float) $item->getQty();
-                    $unitPrice = $qty > 0 ? (float) $item->getRowTotal() / $qty : (float) $item->getPrice();
-                    $items[] = [
-                        'product_id' => (int) $item->getProductId(),
-                        'title'      => $item->getName(),
-                        'sku'        => $item->getSku(),
-                        'quantity'   => $qty,
-                        'unit_price' => $unitPrice,
-                    ];
-                }
-            }
+            $snapshot = QuoteCommerceSnapshot::fromQuote($this->checkoutSession->getQuote());
         } catch (\Throwable) {
         }
 
         $data = [
             'payment_method' => $method,
-            'cart_total'     => $cartTotal,
-            'currency'       => $currency,
-            'items'          => $items,
+            'cart_total'     => $snapshot['cart_total'],
+            'currency'       => $snapshot['currency'],
+            'items'          => $snapshot['items'],
             'context'        => StorefrontContext::fromRequest($this->request, 'checkout', 'Checkout'),
         ];
         $this->checkoutSession->setData(self::SESSION_KEY, 1);

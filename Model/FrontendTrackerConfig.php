@@ -10,6 +10,7 @@ use Magento\Framework\Data\Form\FormKey;
 use Magento\Framework\UrlInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Api\ConfigInterface;
+use Panto\Source\Helper\StorefrontPageClassifier;
 
 /**
  * Builds storefront tracker JSON config (session-specific; served via async GET, not inline in FPC pages).
@@ -24,14 +25,15 @@ class FrontendTrackerConfig
         private readonly HttpRequest $request,
         private readonly LayerResolver $layerResolver,
         private readonly CustomerSession $customerSession,
-        private readonly UrlInterface $urlBuilder
+        private readonly UrlInterface $urlBuilder,
+        private readonly StorefrontPageClassifier $pageClassifier
     ) {
     }
 
     /**
      * @return array<string, mixed>|null Null when tracking is disabled or consent is not granted.
      */
-    public function build(?int $storeId = null): ?array
+    public function build(?int $storeId = null, ?string $pagePath = null): ?array
     {
         $store = $this->storeManager->getStore($storeId);
         $resolvedStoreId = (int) $store->getId();
@@ -43,12 +45,13 @@ class FrontendTrackerConfig
         }
 
         $secure = (bool) $store->isUrlSecure();
-        $fan = (string) $this->request->getFullActionName();
+        $classified = $this->pageClassifier->classify((string) ($pagePath ?? ''), $resolvedStoreId);
 
-        $isProduct = $fan === 'catalog_product_view';
-        $isCategoryList = $fan === 'catalog_category_view';
-        $isSearch = $fan === 'catalogsearch_result_index';
-        $isCheckout = $fan === 'checkout_index_index';
+        $isProduct = $classified['isProduct'];
+        $isCategoryList = $classified['isCategoryList'];
+        $isSearch = $classified['isSearch'];
+        $isCheckout = $classified['isCheckout'];
+        $pageTypeHint = $classified['pageType'];
 
         $productData = null;
         if ($isProduct) {
@@ -74,27 +77,18 @@ class FrontendTrackerConfig
             }
         }
 
-        $searchQuery = '';
+        $searchQuery = $classified['searchQuery'];
         $resultCount = 0;
-        if ($isSearch) {
+        if ($isSearch && $searchQuery === '') {
             $searchQuery = (string) $this->request->getParam('q');
+        }
+        if ($isSearch) {
             try {
                 $layer = $this->layerResolver->get();
                 $resultCount = (int) $layer->getProductCollection()->getSize();
             } catch (\Throwable) {
                 $resultCount = 0;
             }
-        }
-
-        $pageTypeHint = 'other';
-        if ($isProduct) {
-            $pageTypeHint = 'product';
-        } elseif ($isCategoryList) {
-            $pageTypeHint = 'category';
-        } elseif ($isSearch) {
-            $pageTypeHint = 'search';
-        } elseif ($isCheckout) {
-            $pageTypeHint = 'checkout';
         }
 
         return [

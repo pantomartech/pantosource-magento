@@ -350,49 +350,15 @@ define([], function () {
             trackPageview(cfg, fired);
             setupSpaPageviews(cfg, fired);
 
-            if (cfg.flags && cfg.flags.isProduct && cfg.product && cfg.product.id) {
-                once(fired, 'product_viewed', function () {
-                    postEvent(cfg, 'product_viewed', {
-                        page_type: 'product',
-                        currency: cfg.currency || '',
-                        product_id: cfg.product.id,
-                        product_name: cfg.product.name || '',
-                        price: cfg.product.price || '',
-                        sku: cfg.product.sku || ''
-                    });
-                });
-            }
-
-            if (cfg.flags && cfg.flags.isCategoryList && cfg.category) {
-                once(fired, 'product_list_viewed', function () {
-                    postEvent(cfg, 'product_list_viewed', {
-                        list_type: 'category',
-                        category_id: cfg.category.id,
-                        category_name: cfg.category.name || ''
-                    });
-                });
-            }
-
-            if (cfg.flags && cfg.flags.isSearch) {
-                once(fired, 'search_performed', function () {
-                    var q = (cfg.search && cfg.search.query) || '';
-                    var rc =
-                        cfg.search && typeof cfg.search.resultCount === 'number'
-                            ? cfg.search.resultCount
-                            : 0;
-                    postEvent(cfg, 'search_performed', {
-                        query: q,
-                        result_count: rc
-                    });
-                });
-            }
+            // product_viewed / product_list_viewed / search_performed are server-canonical
+            // (ProductViewObserver / CategoryViewObserver / SearchObserver). Config is loaded
+            // on a separate GET, so JS must not emit those — it only stamps pageview type.
 
             // checkout_initiated is emitted server-side by CheckoutInitObserver
             // (controller_action_predispatch_checkout_index_index), which provides a richer
             // payload (full cart items with categories, cart_total, currency, item_count) and
-            // is already session-deduplicated via CheckoutSession key
-            // pantosource_checkout_init_sent. Emitting it here too caused a duplicate on
-            // every checkout page load.
+            // is already quote-scoped via CheckoutSession key
+            // pantosource_checkout_init_sent_{quoteId}. Emitting it here too caused a duplicate.
 
             // Cart add/remove/qty are server-canonical (Woo model). Do not emit optimistic
             // .tocart clicks — CartAddObserver fires after Magento confirms the add.
@@ -406,7 +372,16 @@ define([], function () {
     }
 
     function loadConfigFromUrl(configUrl) {
-        fetch(configUrl, {
+        var pagePath = (window.location.pathname || '') + (window.location.search || '');
+        if (pagePath.charAt(0) !== '/') {
+            pagePath = '/' + pagePath;
+        }
+        if (pagePath.length > 2048) {
+            pagePath = pagePath.slice(0, 2048);
+        }
+        var sep = configUrl.indexOf('?') >= 0 ? '&' : '?';
+        var url = configUrl + sep + 'page_path=' + encodeURIComponent(pagePath);
+        fetch(url, {
             method: 'GET',
             credentials: 'same-origin',
             headers: { Accept: 'application/json' }

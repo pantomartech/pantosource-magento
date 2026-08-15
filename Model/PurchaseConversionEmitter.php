@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Panto\Source\Model;
 
+use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Sales\Api\Data\OrderInterface;
+use Panto\Source\Helper\CheckoutInitSessionKey;
 use Panto\Source\Helper\StorefrontContext;
 
 /**
@@ -20,7 +22,8 @@ class PurchaseConversionEmitter
         private readonly HashedPiiEnricher $hashedPiiEnricher,
         private readonly CustomerProfileBuilder $customerProfileBuilder,
         private readonly CheckoutIdentityRepository $checkoutIdentity,
-        private readonly OrderEnrichment $orderEnrichment
+        private readonly OrderEnrichment $orderEnrichment,
+        private readonly CheckoutSession $checkoutSession
     ) {
     }
 
@@ -53,6 +56,10 @@ class PurchaseConversionEmitter
         $ok = $this->dispatcher->dispatch('magento_purchase_completed', $data, 'conversion');
         if ($ok) {
             $this->dedupeRepository->markPurchaseEmitted($orderId);
+            $quoteId = (int) $order->getQuoteId();
+            if ($quoteId > 0) {
+                $this->checkoutSession->unsData(CheckoutInitSessionKey::forQuote($quoteId));
+            }
         }
         return $ok;
     }

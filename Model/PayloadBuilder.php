@@ -10,6 +10,8 @@ use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Api\ConfigInterface;
 
 use Panto\Source\Helper\BrowserContextBridge;
+use Panto\Source\Helper\CanonicalContextPath;
+use Panto\Source\Helper\ExternalId;
 
 class PayloadBuilder
 {
@@ -159,9 +161,11 @@ class PayloadBuilder
     private function buildUser(array $data, int $storeId): array
     {
         $consent = $this->config->hasTrackingConsent($storeId);
-        $externalId = isset($data['customer_id']) ? (string) $data['customer_id'] : '';
+        $externalId = isset($data['customer_id'])
+            ? ExternalId::fromCustomerId($data['customer_id'])
+            : '';
         if ($externalId === '' && $this->customerSession->isLoggedIn()) {
-            $externalId = (string) $this->customerSession->getCustomerId();
+            $externalId = ExternalId::fromCustomerId($this->customerSession->getCustomerId());
         }
         $email = '';
         if (isset($data['billing_email'])) {
@@ -220,12 +224,7 @@ class PayloadBuilder
         $consent = $this->config->hasTrackingConsent($storeId);
         $ctx = isset($data['context']) && is_array($data['context']) ? $data['context'] : [];
         $tz = (string) ($ctx['timezone'] ?? '');
-        $path = (string) ($ctx['path'] ?? '');
-        if ($path === '' && $url !== '') {
-            $p = parse_url($url, PHP_URL_PATH);
-            $q = parse_url($url, PHP_URL_QUERY);
-            $path = ($p ?: '/') . ($q ? '?' . $q : '');
-        }
+        $path = CanonicalContextPath::resolve($ctx, $url);
         $pageUrl = (string) ($ctx['page']['url'] ?? '');
         if ($pageUrl === '') {
             $pageUrl = $url;

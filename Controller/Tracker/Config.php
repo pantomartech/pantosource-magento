@@ -29,7 +29,8 @@ class Config extends Action implements HttpGetActionInterface
         $result->setHeader('Cache-Control', self::CACHE_CONTROL_HEADER, true);
 
         $storeId = (int) $this->storeManager->getStore()->getId();
-        $config = $this->frontendTrackerConfig->build($storeId);
+        $pagePath = (string) $this->getRequest()->getParam('page_path', '');
+        $config = $this->frontendTrackerConfig->build($storeId, $pagePath);
         if ($config === null) {
             return $result->setHttpResponseCode(204);
         }

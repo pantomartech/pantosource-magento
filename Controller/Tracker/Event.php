@@ -14,6 +14,7 @@ use Magento\Framework\Data\Form\FormKey;
 use Magento\Framework\UrlInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Api\ConfigInterface;
+use Panto\Source\Helper\QuoteCommerceSnapshot;
 use Panto\Source\Model\AttributionGuardrails;
 use Panto\Source\Model\AttributionWindowCapture;
 use Panto\Source\Model\EventDispatcher;
@@ -116,6 +117,7 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
 
         if ($eventName === 'add_payment_info') {
             $this->checkoutSession->setData(PaymentInfoObserver::SESSION_KEY, 1);
+            $data = $this->enrichPaymentInfoFromQuote($data);
         }
 
         $storeId = (int) $this->storeManager->getStore()->getId();
@@ -184,5 +186,34 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
                 $attribution
             ),
         ]);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function enrichPaymentInfoFromQuote(array $data): array
+    {
+        $needsItems = empty($data['items']) || !is_array($data['items']);
+        $needsTotal = !isset($data['cart_total']) || $data['cart_total'] === '';
+        $needsCurrency = !isset($data['currency']) || $data['currency'] === '';
+        if (!$needsItems && !$needsTotal && !$needsCurrency) {
+            return $data;
+        }
+        try {
+            $snapshot = QuoteCommerceSnapshot::fromQuote($this->checkoutSession->getQuote());
+        } catch (\Throwable) {
+            return $data;
+        }
+        if ($needsItems && $snapshot['items'] !== []) {
+            $data['items'] = $snapshot['items'];
+        }
+        if ($needsTotal && $snapshot['cart_total'] !== '') {
+            $data['cart_total'] = $snapshot['cart_total'];
+        }
+        if ($needsCurrency && $snapshot['currency'] !== '') {
+            $data['currency'] = $snapshot['currency'];
+        }
+        return $data;
     }
 }
