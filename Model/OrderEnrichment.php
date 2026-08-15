@@ -16,13 +16,24 @@ class OrderEnrichment
     public function isNewCustomer(OrderInterface $order): bool
     {
         $customerId = (int) $order->getCustomerId();
-        if ($customerId <= 0) {
+        if ($customerId > 0) {
+            $collection = $this->orderCollectionFactory->create();
+            $collection->addFieldToFilter('customer_id', $customerId);
+            $collection->setPageSize(2);
+            return NewCustomerDecision::isNew($customerId, (int) $collection->getSize(), 0);
+        }
+
+        $email = strtolower(trim((string) $order->getCustomerEmail()));
+        if ($email === '') {
             return true;
         }
+
         $collection = $this->orderCollectionFactory->create();
-        $collection->addFieldToFilter('customer_id', $customerId);
+        $collection->addFieldToFilter('customer_email', $email);
+        $collection->addFieldToFilter('store_id', (int) $order->getStoreId());
+        $collection->addFieldToFilter('state', ['nin' => ['canceled']]);
         $collection->setPageSize(2);
-        return $collection->getSize() <= 1;
+        return NewCustomerDecision::isNew(0, 0, (int) $collection->getSize());
     }
 
     /**

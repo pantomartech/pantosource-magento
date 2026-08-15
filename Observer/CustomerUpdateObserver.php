@@ -8,6 +8,7 @@ use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
+use Panto\Source\Helper\FrontendArea;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\EventDispatcher;
 
@@ -18,12 +19,16 @@ class CustomerUpdateObserver implements ObserverInterface
     public function __construct(
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
-        private readonly CacheInterface $cache
+        private readonly CacheInterface $cache,
+        private readonly FrontendArea $frontendArea
     ) {
     }
 
     public function execute(Observer $observer): void
     {
+        if (!$this->frontendArea->isFrontend()) {
+            return;
+        }
         $customer = $observer->getEvent()->getCustomer();
         if (!$customer instanceof Customer || !$customer->getId()) {
             return;

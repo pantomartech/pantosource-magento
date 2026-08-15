@@ -8,7 +8,6 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Store\Model\StoreManagerInterface;
-use Panto\Source\Api\ConfigInterface;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\EventDispatcher;
 
@@ -18,8 +17,7 @@ class CartRemoveObserver implements ObserverInterface
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
         private readonly StoreManagerInterface $storeManager,
-        private readonly CategoryRepositoryInterface $categoryRepository,
-        private readonly ConfigInterface $config
+        private readonly CategoryRepositoryInterface $categoryRepository
     ) {
     }
 
@@ -44,35 +42,23 @@ class CartRemoveObserver implements ObserverInterface
             return;
         }
 
-        // Mirror CartAddObserver: suppress PHP-side emission when the frontend
-        // RequireJS tracker is active for this store, to avoid double-counting
-        // if a theme-level JS tracker also handles remove events.
-        try {
-            $storeId = (int) $this->storeManager->getStore()->getId();
-        } catch (\Throwable) {
-            $storeId = 0;
-        }
-        if ($this->config->isFrontendTrackerEnabled($storeId)) {
-            return;
-        }
-
         $item = $observer->getEvent()->getQuoteItem();
         if (!$item) {
             return;
         }
 
-        // Resolve unit price from row total / qty; fall back to catalog price.
         $qty = (float) $item->getQty();
         $unitPrice = $qty > 0 ? (float) $item->getRowTotal() / $qty : (float) $item->getPrice();
+        $title = (string) $item->getName();
+        $sku = (string) $item->getSku();
+        $productId = (int) $item->getProductId();
 
-        // Resolve currency.
         try {
             $currency = (string) $this->storeManager->getStore()->getCurrentCurrencyCode();
         } catch (\Throwable) {
             $currency = '';
         }
 
-        // Resolve first product category.
         $category = '';
         try {
             $product = $item->getProduct();
@@ -86,16 +72,42 @@ class CartRemoveObserver implements ObserverInterface
             $category = '';
         }
 
+        $cartId = 0;
+        try {
+            $quote = $item->getQuote();
+            if ($quote && $quote->getId()) {
+                $cartId = (int) $quote->getId();
+            } elseif ($item->getQuoteId()) {
+                $cartId = (int) $item->getQuoteId();
+            }
+        } catch (\Throwable) {
+            $cartId = (int) $item->getQuoteId();
+        }
+
+        $line = [
+            'product_id' => $productId,
+            'title' => $title,
+            'sku' => $sku,
+            'quantity' => $qty,
+            'unit_price' => $unitPrice,
+            'category' => $category,
+        ];
+
         $data = [
             'quote_item_id' => (int) $item->getId(),
-            'product_id'    => (int) $item->getProductId(),
-            'quantity'      => (int) $item->getQty(),
-            'sku'           => (string) $item->getSku(),
-            'unit_price'    => $unitPrice,
-            'currency'      => $currency,
-            'category'      => $category,
-            'context'       => StorefrontContext::fromRequest($this->request, 'cart', ''),
+            'product_id' => $productId,
+            'quantity' => (int) $qty,
+            'sku' => $sku,
+            'title' => $title,
+            'unit_price' => $unitPrice,
+            'currency' => $currency,
+            'category' => $category,
+            'items' => [$line],
+            'context' => StorefrontContext::fromRequest($this->request, 'cart', ''),
         ];
+        if ($cartId > 0) {
+            $data['cart_id'] = $cartId;
+        }
         $this->dispatcher->dispatch('magento_remove_from_cart', $data);
     }
 }

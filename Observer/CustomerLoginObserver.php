@@ -8,6 +8,7 @@ use Magento\Customer\Model\CustomerFactory;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
+use Panto\Source\Helper\FrontendArea;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
@@ -18,12 +19,16 @@ class CustomerLoginObserver implements ObserverInterface
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
         private readonly CustomerFactory $customerFactory,
-        private readonly CustomerProfileBuilder $customerProfileBuilder
+        private readonly CustomerProfileBuilder $customerProfileBuilder,
+        private readonly FrontendArea $frontendArea
     ) {
     }
 
     public function execute(Observer $observer): void
     {
+        if (!$this->frontendArea->isFrontend()) {
+            return;
+        }
         /** @var CustomerInterface|null $customer */
         $customer = $observer->getEvent()->getCustomer();
         if (!$customer || !$customer->getId()) {

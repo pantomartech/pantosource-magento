@@ -41,7 +41,11 @@ class CartUpdateObserver implements ObserverInterface
                 continue;
             }
             $newQty = (int) $itemInfo['qty'];
-            $oldQty = (int) $item->getQty(); // may already be updated — best-effort
+            $orig = $item->getOrigData('qty');
+            if ($orig === null) {
+                continue;
+            }
+            $oldQty = (int) (float) $orig;
             $delta = $newQty - $oldQty;
             if ($delta === 0) {
                 continue;
@@ -53,6 +57,7 @@ class CartUpdateObserver implements ObserverInterface
                 'quantity_delta' => $delta,
                 'product_id' => (int) $item->getProductId(),
                 'sku' => (string) $item->getSku(),
+                'title' => (string) $item->getName(),
                 'unit_price' => (float) $item->getPrice(),
                 'currency' => (string) $quote->getQuoteCurrencyCode(),
                 'context' => StorefrontContext::fromRequest($this->request, 'cart', ''),

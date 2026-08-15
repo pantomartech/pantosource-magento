@@ -16,7 +16,7 @@ use Panto\Source\Model\EventDispatcher;
  */
 class PaymentInfoObserver implements ObserverInterface
 {
-    private const SESSION_KEY = 'pantosource_payment_info_sent';
+    public const SESSION_KEY = 'pantosource_payment_info_sent';
 
     public function __construct(
         private readonly EventDispatcher $dispatcher,

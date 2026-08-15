@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Panto\Source\Controller\Tracker;
 
+use Magento\Checkout\Model\Session as CheckoutSession;
+use Magento\Customer\Model\Session as CustomerSession;
 use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\App\CsrfAwareActionInterface;
 use Magento\Framework\App\Request\InvalidRequestException;
@@ -18,6 +20,7 @@ use Panto\Source\Model\EventDispatcher;
 use Panto\Source\Model\EventRegistry;
 use Panto\Source\Model\FrontendRateLimiter;
 use Panto\Source\Model\QueueBroker;
+use Panto\Source\Observer\PaymentInfoObserver;
 
 class Event extends \Magento\Framework\App\Action\Action implements HttpPostActionInterface, CsrfAwareActionInterface
 {
@@ -29,7 +32,9 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         private readonly ConfigInterface $config,
         private readonly StoreManagerInterface $storeManager,
         private readonly AttributionWindowCapture $attributionWindow,
-        private readonly FrontendRateLimiter $rateLimiter
+        private readonly FrontendRateLimiter $rateLimiter,
+        private readonly CheckoutSession $checkoutSession,
+        private readonly CustomerSession $customerSession
     ) {
         parent::__construct($context);
     }
@@ -86,7 +91,8 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
             'product_list_viewed',
             'search_performed',
             'checkout_initiated',
-            'magento_add_to_cart',
+            'add_payment_info',
+            'magento_customer_identified',
         ];
         if (!in_array($eventName, $allowed, true)) {
             return $result->setData(['ok' => false, 'error' => 'unsupported_event'])->setHttpResponseCode(400);
@@ -95,6 +101,21 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         $data = isset($body['data']) && is_array($body['data']) ? $body['data'] : [];
         if (isset($body['context']) && is_array($body['context'])) {
             $data['context'] = $this->mergeContext($body['context'], $data['context'] ?? []);
+        }
+
+        if ($eventName === 'magento_customer_identified') {
+            if (!$this->customerSession->isLoggedIn()) {
+                return $result->setData(['ok' => false, 'error' => 'not_logged_in'])->setHttpResponseCode(401);
+            }
+            $data['customer_id'] = (int) $this->customerSession->getCustomerId();
+            $email = (string) $this->customerSession->getCustomer()->getEmail();
+            if ($email !== '') {
+                $data['email'] = $email;
+            }
+        }
+
+        if ($eventName === 'add_payment_info') {
+            $this->checkoutSession->setData(PaymentInfoObserver::SESSION_KEY, 1);
         }
 
         $storeId = (int) $this->storeManager->getStore()->getId();

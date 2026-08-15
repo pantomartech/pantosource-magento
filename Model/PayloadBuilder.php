@@ -110,13 +110,7 @@ class PayloadBuilder
      */
     private function buildProduct(array $data): array|object
     {
-        $product = [];
-        if (isset($data['product_id'])) {
-            $product['product_id'] = (string) $data['product_id'];
-        }
-        if (isset($data['variation_id'])) {
-            $product['variation_id'] = (string) $data['variation_id'];
-        }
+        $product = CommerceFields::hoistProduct($data);
         return $product === [] ? new \stdClass() : $product;
     }
 
@@ -306,9 +300,10 @@ class PayloadBuilder
                     $commerce[$to] = (float) $ot[$from];
                 }
             }
-            if (!empty($ot['payment_method']) && is_string($ot['payment_method']) && trim($ot['payment_method']) !== '') {
-                $commerce['payment_method'] = trim($ot['payment_method']);
-            }
+        }
+        $paymentMethod = CommerceFields::resolvePaymentMethod($data);
+        if ($paymentMethod !== '') {
+            $commerce['payment_method'] = $paymentMethod;
         }
         if (!empty($data['items']) && is_array($data['items'])) {
             $items = [];
@@ -463,7 +458,7 @@ class PayloadBuilder
     {
         $ext = [
             'magento' => [
-                'module_version' => '1.1.0',
+                'module_version' => '1.2.0',
             ],
         ];
         $journeyId = $this->resolveJourneyId();

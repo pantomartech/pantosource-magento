@@ -31,6 +31,9 @@
     <event name="checkout_onepage_controller_success_action">
         <observer name="pantosource_checkout_success" instance="Panto\Source\Observer\CheckoutSuccessObserver"/>
     </event>
+    <event name="sales_order_invoice_pay">
+        <observer name="pantosource_order_paid" instance="Panto\Source\Observer\OrderPaidObserver"/>
+    </event>
     <event name="sales_order_shipment_save_after">
         <observer name="pantosource_shipment" instance="Panto\Source\Observer\ShipmentSaveObserver"/>
     </event>

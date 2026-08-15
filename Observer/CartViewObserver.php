@@ -76,6 +76,7 @@ class CartViewObserver implements ObserverInterface
         }
 
         $data = [
+            'cart_id'    => (int) $quote->getId(),
             'cart_total' => (string) $quote->getGrandTotal(),
             'currency'   => (string) $quote->getQuoteCurrencyCode(),
             'item_count' => (int) $quote->getItemsCount(),

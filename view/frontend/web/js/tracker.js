@@ -316,39 +316,20 @@ define([], function () {
         fn();
     }
 
-    function installAddToCartClicks(cfg, fired) {
-        document.body.addEventListener(
-            'click',
-            function (event) {
-                var btn = event.target.closest(
-                    'button[type="submit"].tocart, .action.tocart, form[data-role="tocart-form"] button[type="submit"]'
-                );
-                if (!btn) {
-                    return;
-                }
-                var form = btn.closest('form');
-                if (!form) {
-                    return;
-                }
-                var pidInput =
-                    form.querySelector('input[name="product"]') ||
-                    form.querySelector('input[name="product_id"]');
-                var qtyInput = form.querySelector('input[name="qty"]');
-                var productId = pidInput ? parseInt(pidInput.value, 10) : 0;
-                var qty = qtyInput ? parseFloat(qtyInput.value) : 1;
-                if (!productId) {
-                    return;
-                }
-                postEvent(cfg, 'magento_add_to_cart', {
-                    source: 'frontend_click',
-                    product_id: productId,
-                    quantity: isNaN(qty) || qty <= 0 ? 1 : qty,
-                    sku: '',
-                    currency: cfg.currency || ''
-                });
-            },
-            true
-        );
+    function maybeIdentifyCustomer(cfg) {
+        var id = cfg.customerId ? parseInt(cfg.customerId, 10) : 0;
+        if (!id) {
+            return;
+        }
+        try {
+            if (sessionStorage.getItem('panto_customer_identified')) {
+                return;
+            }
+            sessionStorage.setItem('panto_customer_identified', '1');
+        } catch (e) {
+            /* sessionStorage disabled */
+        }
+        postEvent(cfg, 'magento_customer_identified', { source: 'frontend_js' });
     }
 
     function onReady(fn) {
@@ -413,8 +394,15 @@ define([], function () {
             // pantosource_checkout_init_sent. Emitting it here too caused a duplicate on
             // every checkout page load.
 
-            installAddToCartClicks(cfg, fired);
+            // Cart add/remove/qty are server-canonical (Woo model). Do not emit optimistic
+            // .tocart clicks — CartAddObserver fires after Magento confirms the add.
+
+            maybeIdentifyCustomer(cfg);
         });
+
+        window.pantoSourceTrack = function (eventName, data) {
+            postEvent(cfg, eventName, data || {});
+        };
     }
 
     function loadConfigFromUrl(configUrl) {

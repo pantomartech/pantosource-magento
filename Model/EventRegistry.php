@@ -37,22 +37,22 @@ class EventRegistry
             'magento_add_to_cart' => [
                 'type' => 'track',
                 'required_keys' => ['product_id', 'quantity'],
-                'optional_keys' => ['sku', 'quote_item_id', 'context'],
+                'optional_keys' => ['sku', 'title', 'unit_price', 'quote_item_id', 'items', 'cart_id', 'context'],
             ],
             'magento_cart_item_quantity_changed' => [
                 'type' => 'track',
                 'required_keys' => ['quote_item_id', 'new_quantity', 'old_quantity', 'quantity_delta'],
-                'optional_keys' => ['product_id', 'sku', 'context'],
+                'optional_keys' => ['product_id', 'sku', 'title', 'context'],
             ],
             'magento_remove_from_cart' => [
                 'type' => 'track',
                 'required_keys' => ['quote_item_id'],
-                'optional_keys' => ['product_id', 'quantity', 'sku', 'context'],
+                'optional_keys' => ['product_id', 'quantity', 'sku', 'title', 'unit_price', 'items', 'cart_id', 'context'],
             ],
             'checkout_initiated' => [
                 'type' => 'track',
                 'required_keys' => [],
-                'optional_keys' => ['cart_total', 'currency', 'item_count', 'items', 'context'],
+                'optional_keys' => ['cart_total', 'currency', 'item_count', 'items', 'cart_id', 'context'],
             ],
             'magento_checkout_order_placed' => [
                 'type' => 'track',
@@ -92,7 +92,7 @@ class EventRegistry
             'view_cart' => [
                 'type' => 'track',
                 'required_keys' => [],
-                'optional_keys' => ['cart_total', 'currency', 'item_count', 'items', 'context'],
+                'optional_keys' => ['cart_total', 'currency', 'item_count', 'items', 'cart_id', 'context'],
             ],
             'magento_refund_created' => [
                 'type' => 'track',
@@ -107,7 +107,7 @@ class EventRegistry
             'magento_add_to_wishlist' => [
                 'type' => 'track',
                 'required_keys' => ['product_id'],
-                'optional_keys' => ['sku', 'unit_price', 'currency', 'context'],
+                'optional_keys' => ['sku', 'unit_price', 'currency', 'wishlist_id', 'context'],
             ],
             'add_payment_info' => [
                 'type' => 'track',
@@ -115,6 +115,11 @@ class EventRegistry
                 'optional_keys' => ['payment_method', 'cart_total', 'currency', 'items', 'context'],
             ],
             'magento_customer_updated' => [
+                'type' => 'identify',
+                'required_keys' => ['customer_id'],
+                'optional_keys' => ['email', 'context'],
+            ],
+            'magento_customer_identified' => [
                 'type' => 'identify',
                 'required_keys' => ['customer_id'],
                 'optional_keys' => ['email', 'context'],

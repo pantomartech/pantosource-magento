@@ -27,29 +27,32 @@ class HashedPiiEnricher
             return $data;
         }
 
-        $hash = static function (string $value): string {
-            $trimmed = strtolower(trim($value));
-            return $trimmed === '' ? '' : hash('sha256', $trimmed);
-        };
-        $normalizePhone = static function (string $value): string {
-            return preg_replace('/\D+/', '', $value) ?? '';
-        };
-
         $email = (string) $order->getCustomerEmail();
         $billing = $order->getBillingAddress();
         $phone = $billing ? (string) $billing->getTelephone() : '';
         $first = $billing ? (string) $billing->getFirstname() : '';
         $last = $billing ? (string) $billing->getLastname() : '';
+        $city = $billing ? (string) $billing->getCity() : '';
+        $state = '';
+        $zip = $billing ? (string) $billing->getPostcode() : '';
+        $country = $billing ? (string) $billing->getCountryId() : '';
+        if ($billing) {
+            $state = (string) $billing->getRegion();
+            if ($state === '' && method_exists($billing, 'getRegionCode')) {
+                $state = (string) $billing->getRegionCode();
+            }
+        }
 
-        $data['hashed_user'] = array_filter(
-            [
-                'email_sha256' => $hash($email),
-                'phone_sha256' => $hash($normalizePhone($phone)),
-                'first_name_sha256' => $hash($first),
-                'last_name_sha256' => $hash($last),
-            ],
-            static fn (string $v): bool => $v !== ''
-        );
+        $data['hashed_user'] = HashedPiiHasher::hashFields([
+            'email' => $email,
+            'phone' => $phone,
+            'first_name' => $first,
+            'last_name' => $last,
+            'city' => $city,
+            'state' => $state,
+            'zip' => $zip,
+            'country' => $country,
+        ]);
 
         return $data;
     }

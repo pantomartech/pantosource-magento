@@ -36,6 +36,16 @@ class WishlistAddObserver implements ObserverInterface
             $currency = '';
         }
 
+        $wishlistId = 0;
+        try {
+            $wishlist = $observer->getEvent()->getWishlist();
+            if ($wishlist && $wishlist->getId()) {
+                $wishlistId = (int) $wishlist->getId();
+            }
+        } catch (\Throwable) {
+            $wishlistId = 0;
+        }
+
         $data = [
             'product_id' => (int) $product->getId(),
             'sku'        => (string) $product->getSku(),
@@ -43,6 +53,9 @@ class WishlistAddObserver implements ObserverInterface
             'currency'   => $currency,
             'context'    => StorefrontContext::fromRequest($this->request, 'product', (string) $product->getName()),
         ];
+        if ($wishlistId > 0) {
+            $data['wishlist_id'] = $wishlistId;
+        }
         $this->dispatcher->dispatch('magento_add_to_wishlist', $data);
     }
 }

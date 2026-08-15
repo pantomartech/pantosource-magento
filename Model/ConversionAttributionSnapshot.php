@@ -14,11 +14,12 @@ class ConversionAttributionSnapshot
     }
 
     /** @var list<string> */
-    private const CONVERSION_EVENTS = [
+    public const CONVERSION_EVENTS = [
         'magento_purchase_completed',
         'magento_checkout_order_placed',
         'magento_order_cancelled',
         'magento_refund_created',
+        'add_payment_info',
     ];
 
     public function appliesTo(string $eventName): bool
