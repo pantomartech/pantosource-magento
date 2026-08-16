@@ -5,4 +5,10 @@
     <type name="Magento\Customer\Api\CustomerRepositoryInterface">
         <plugin name="pantosource_customer_repository_delete" type="Panto\Source\Plugin\CustomerRepositoryDeletePlugin" sortOrder="100"/>
     </type>
+    <type name="Magento\Quote\Api\CartItemRepositoryInterface">
+        <plugin name="pantosource_cart_item_save" type="Panto\Source\Plugin\CartItemRepositorySavePlugin" sortOrder="100"/>
+    </type>
+    <type name="Magento\Quote\Api\GuestCartItemRepositoryInterface">
+        <plugin name="pantosource_guest_cart_item_save" type="Panto\Source\Plugin\GuestCartItemRepositorySavePlugin" sortOrder="100"/>
+    </type>
 </config>

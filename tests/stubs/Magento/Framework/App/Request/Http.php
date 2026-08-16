@@ -24,4 +24,19 @@ class Http
     {
         return $this;
     }
+
+    public function getRequestUri(): string
+    {
+        return '';
+    }
+
+    /**
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
+    public function getServer($key, $default = null)
+    {
+        return $default;
+    }
 }

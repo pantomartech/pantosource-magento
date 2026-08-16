@@ -12,6 +12,7 @@ use Panto\Source\Api\ConfigInterface;
 use Panto\Source\Helper\BrowserContextBridge;
 use Panto\Source\Helper\CanonicalContextPath;
 use Panto\Source\Helper\ExternalId;
+use Panto\Source\Helper\PlatformString;
 
 class PayloadBuilder
 {
@@ -232,9 +233,11 @@ class PayloadBuilder
         $title = (string) ($ctx['page']['title'] ?? '');
         $referrer = (string) ($ctx['page']['referrer'] ?? $ctx['referrer'] ?? '');
         $pageType = (string) ($ctx['page']['type'] ?? $ctx['page_type'] ?? '');
-        $platform = (string) ($ctx['platform'] ?? '');
+        $platform = PlatformString::normalize((string) ($ctx['platform'] ?? ''));
         if ($platform === '' && $consent) {
-            $platform = (string) $this->httpRequest->getServer('HTTP_SEC_CH_UA_PLATFORM', '');
+            $platform = PlatformString::normalize(
+                (string) $this->httpRequest->getServer('HTTP_SEC_CH_UA_PLATFORM', '')
+            );
         }
         $ua = '';
         if (!empty($ctx['user_agent'])) {
@@ -258,6 +261,9 @@ class PayloadBuilder
         ];
         if (!empty($ctx['device']) && is_array($ctx['device'])) {
             $device = array_merge($device, array_filter($ctx['device'], static fn ($v) => $v !== null && $v !== ''));
+        }
+        if (isset($device['platform'])) {
+            $device['platform'] = PlatformString::normalize((string) $device['platform']);
         }
 
         return [
@@ -457,7 +463,7 @@ class PayloadBuilder
     {
         $ext = [
             'magento' => [
-                'module_version' => '1.2.0',
+                'module_version' => '1.2.1',
             ],
         ];
         $journeyId = $this->resolveJourneyId();

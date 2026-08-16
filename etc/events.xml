@@ -19,6 +19,9 @@
     <event name="sales_quote_product_add_after">
         <observer name="pantosource_quote_product_add" instance="Panto\Source\Observer\CartAddObserver"/>
     </event>
+    <event name="controller_action_postdispatch_checkout_cart_add">
+        <observer name="pantosource_cart_add_controller" instance="Panto\Source\Observer\CartAddControllerObserver"/>
+    </event>
     <event name="sales_quote_remove_item">
         <observer name="pantosource_cart_remove" instance="Panto\Source\Observer\CartRemoveObserver"/>
     </event>
