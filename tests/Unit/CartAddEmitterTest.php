@@ -93,6 +93,53 @@ final class CartAddEmitterTest extends TestCase
         $this->assertSame($result, $plugin->afterSave($repo, $result, $input));
     }
 
+    public function testEmitsWhenProductIdIsMagicGetterOnly(): void
+    {
+        $dispatcher = $this->createMock(EventDispatcher::class);
+        $dispatcher->expects($this->once())->method('dispatch')->with(
+            'magento_add_to_cart',
+            $this->callback(static function (array $data): bool {
+                return ($data['product_id'] ?? null) === 1;
+            })
+        );
+        $emitter = $this->emitter($dispatcher);
+        $this->assertTrue($emitter->emitFromQuoteItem(new MagicQuoteItem([
+            'product_id' => 1,
+            'qty' => 1.0,
+            'item_id' => 9,
+            'quote_id' => 7,
+            'name' => 'Test Product',
+            'sku' => 'SKU',
+            'price' => 50.0,
+            'row_total' => 50.0,
+        ])));
+        $this->assertFalse(method_exists(new MagicQuoteItem(['product_id' => 1]), 'getProductId'));
+    }
+
+    public function testRepositorySaveQtyIncreaseViaGetData(): void
+    {
+        $dispatcher = $this->createMock(EventDispatcher::class);
+        $dispatcher->expects($this->once())->method('dispatch');
+        $emitter = $this->emitter($dispatcher);
+        $input = new MagicQuoteItem([
+            'product_id' => 1,
+            'qty' => 2.0,
+            'item_id' => 9,
+            'quote_id' => 7,
+        ], origQty: 1.0);
+        $result = new MagicQuoteItem([
+            'product_id' => 1,
+            'qty' => 2.0,
+            'item_id' => 9,
+            'quote_id' => 7,
+            'name' => 'Test Product',
+            'sku' => 'SKU',
+            'price' => 50.0,
+        ]);
+        $this->assertFalse(method_exists($result, 'getQty'));
+        $this->assertTrue($emitter->emitAfterRepositorySave($input, $result));
+    }
+
     private function emitter(EventDispatcher $dispatcher): CartAddEmitter
     {
         $store = new class {
@@ -211,5 +258,63 @@ final class FakeQuoteItem
     public function getOrigData(string $key): mixed
     {
         return $key === 'qty' ? $this->origQty : null;
+    }
+}
+
+/**
+ * Magento Quote\Item shaped: getData / __call only — no real getProductId() or getQty().
+ */
+final class MagicQuoteItem
+{
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function __construct(
+        private array $data,
+        private ?float $origQty = null
+    ) {
+    }
+
+    public function getData(?string $key = null): mixed
+    {
+        if ($key === null || $key === '') {
+            return $this->data;
+        }
+        return $this->data[$key] ?? null;
+    }
+
+    public function getOrigData(string $key): mixed
+    {
+        return $key === 'qty' ? $this->origQty : null;
+    }
+
+    public function getQuote(): mixed
+    {
+        return null;
+    }
+
+    public function getProduct(): mixed
+    {
+        return null;
+    }
+
+    public function __call(string $name, array $arguments): mixed
+    {
+        unset($arguments);
+        $map = [
+            'getProductId' => 'product_id',
+            'getQty' => 'qty',
+            'getItemId' => 'item_id',
+            'getId' => 'item_id',
+            'getQuoteId' => 'quote_id',
+            'getName' => 'name',
+            'getSku' => 'sku',
+            'getPrice' => 'price',
+            'getRowTotal' => 'row_total',
+        ];
+        if (isset($map[$name])) {
+            return $this->data[$map[$name]] ?? null;
+        }
+        return null;
     }
 }
