@@ -8,6 +8,7 @@ use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Helper\CartAddEmissionGate;
 use Panto\Source\Helper\QuoteItemFields;
+use Panto\Source\Helper\QuoteLineIds;
 use Panto\Source\Helper\StorefrontContext;
 
 /**
@@ -119,10 +120,22 @@ class CartAddEmitter
         $title = QuoteItemFields::string($item, 'name', 'getName');
         $sku = QuoteItemFields::string($item, 'sku', 'getSku');
         $category = $this->resolveCategory($item);
+        $variationId = QuoteLineIds::variantId($item, $productId);
         try {
             $currency = (string) $this->storeManager->getStore()->getCurrentCurrencyCode();
         } catch (\Throwable) {
             $currency = '';
+        }
+        $line = [
+            'product_id' => $productId,
+            'title' => $title,
+            'sku' => $sku,
+            'quantity' => $qty,
+            'unit_price' => $unitPrice,
+            'category' => $category,
+        ];
+        if ($variationId > 0) {
+            $line['variation_id'] = $variationId;
         }
         $data = [
             'product_id' => $productId,
@@ -133,16 +146,12 @@ class CartAddEmitter
             'currency' => $currency,
             'quote_item_id' => $itemId,
             'category' => $category,
-            'items' => [[
-                'product_id' => $productId,
-                'title' => $title,
-                'sku' => $sku,
-                'quantity' => $qty,
-                'unit_price' => $unitPrice,
-                'category' => $category,
-            ]],
+            'items' => [$line],
             'context' => StorefrontContext::fromRequest($this->request, 'cart', ''),
         ];
+        if ($variationId > 0) {
+            $data['variation_id'] = $variationId;
+        }
         if ($cartId > 0) {
             $data['cart_id'] = $cartId;
         }

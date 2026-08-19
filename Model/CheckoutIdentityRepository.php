@@ -3,8 +3,13 @@ declare(strict_types=1);
 
 namespace Panto\Source\Model;
 
-use Magento\Framework\App\ResourceConnection;
 use Magento\Checkout\Model\Session as CheckoutSession;
+use Magento\Framework\App\Request\Http as HttpRequest;
+use Magento\Framework\App\ResourceConnection;
+use Magento\Store\Model\StoreManagerInterface;
+use Panto\Source\Api\ConfigInterface;
+use Panto\Source\Helper\CheckoutIdentitySnapshot;
+use Panto\Source\Helper\MatchingSignalFields;
 
 /**
  * Checkout identity stitching (Woo checkout_token / order meta parity).
@@ -19,7 +24,11 @@ class CheckoutIdentityRepository
 
     public function __construct(
         private readonly ResourceConnection $resource,
-        private readonly CheckoutSession $checkoutSession
+        private readonly CheckoutSession $checkoutSession,
+        private readonly HttpRequest $httpRequest,
+        private readonly AttributionWindowCapture $attributionWindow,
+        private readonly ConfigInterface $config,
+        private readonly StoreManagerInterface $storeManager
     ) {
     }
 
@@ -29,15 +38,68 @@ class CheckoutIdentityRepository
      */
     public function buildSnapshot(array $data): array
     {
-        $ctx = isset($data['context']) && is_array($data['context']) ? $data['context'] : [];
-        $attrib = isset($ctx['attribution']) && is_array($ctx['attribution']) ? $ctx['attribution'] : [];
+        $sid = (int) $this->storeManager->getStore()->getId();
+        if ($this->config->hasTrackingConsent($sid) && $this->config->isAttributionEnabled($sid)) {
+            $window = $this->attributionWindow->readCurrent($sid);
+            if (!isset($data['context']) || !is_array($data['context'])) {
+                $data['context'] = [];
+            }
+            $attrib = isset($data['context']['attribution']) && is_array($data['context']['attribution'])
+                ? $data['context']['attribution']
+                : [];
+            $windowFirst = isset($window['first_touch']) && is_array($window['first_touch']) ? $window['first_touch'] : [];
+            $windowLast = isset($window['last_touch']) && is_array($window['last_touch']) ? $window['last_touch'] : [];
+            if (empty($attrib['first_touch']) && $windowFirst !== []) {
+                $attrib['first_touch'] = $windowFirst;
+            } elseif ($windowFirst !== [] && isset($attrib['first_touch']) && is_array($attrib['first_touch'])) {
+                $attrib['first_touch'] = MatchingSignalFields::union($attrib['first_touch'], $windowFirst);
+            }
+            if (empty($attrib['last_touch']) && $windowLast !== []) {
+                $attrib['last_touch'] = $windowLast;
+            } elseif ($windowLast !== [] && isset($attrib['last_touch']) && is_array($attrib['last_touch'])) {
+                $attrib['last_touch'] = MatchingSignalFields::union($attrib['last_touch'], $windowLast);
+            }
+            $data['context']['attribution'] = $attrib;
+            foreach (['fbp' => '_fbp', 'fbc' => '_fbc', 'ttp' => '_ttp'] as $field => $cookieName) {
+                if (!empty($data[$field])) {
+                    continue;
+                }
+                $raw = (string) $this->httpRequest->getCookie($cookieName, '');
+                if ($raw !== '') {
+                    $data[$field] = $raw;
+                }
+            }
+        }
+
+        $ip = '';
+        $ua = '';
+        if ($this->config->hasTrackingConsent($sid)) {
+            $ip = MatchingSignalFields::firstValidIp([
+                (string) $this->httpRequest->getServer('HTTP_CF_CONNECTING_IP', ''),
+                (string) $this->httpRequest->getServer('HTTP_X_REAL_IP', ''),
+                (string) $this->httpRequest->getServer('HTTP_X_FORWARDED_FOR', ''),
+                (string) $this->httpRequest->getServer('REMOTE_ADDR', ''),
+            ]);
+            $ctx = isset($data['context']) && is_array($data['context']) ? $data['context'] : [];
+            $ua = MatchingSignalFields::nonempty($ctx['user_agent'] ?? '');
+            if ($ua === '') {
+                $ua = MatchingSignalFields::nonempty($this->httpRequest->getServer('HTTP_USER_AGENT', ''));
+            }
+        }
+
+        $anon = isset($data['anonymous_id']) ? (string) $data['anonymous_id'] : '';
+        $sess = isset($data['session_id']) ? (string) $data['session_id'] : '';
+        if ($anon === '') {
+            $anon = (string) $this->httpRequest->getCookie('panto_anonymous_id', '');
+        }
+        if ($sess === '') {
+            $sess = (string) $this->httpRequest->getCookie('panto_session_id', '');
+        }
+
         return [
-            'anonymous_id' => isset($data['anonymous_id']) ? (string) $data['anonymous_id'] : '',
-            'session_id' => isset($data['session_id']) ? (string) $data['session_id'] : '',
-            'attribution_snapshot' => [
-                'first_touch' => $attrib['first_touch'] ?? [],
-                'last_touch' => $attrib['last_touch'] ?? [],
-            ],
+            'anonymous_id' => $anon,
+            'session_id' => $sess,
+            'attribution_snapshot' => CheckoutIdentitySnapshot::fromEventData($data, $ip, $ua),
         ];
     }
 
@@ -101,24 +163,7 @@ class CheckoutIdentityRepository
         if ($attrJson !== '') {
             $decoded = json_decode($attrJson, true);
             if (is_array($decoded)) {
-                if (!isset($data['context']) || !is_array($data['context'])) {
-                    $data['context'] = [];
-                }
-                if (!isset($data['context']['attribution']) || !is_array($data['context']['attribution'])) {
-                    $data['context']['attribution'] = [];
-                }
-                if (!empty($decoded['first_touch'])) {
-                    $data['context']['attribution']['first_touch'] = $decoded['first_touch'];
-                }
-                if (!empty($decoded['last_touch'])) {
-                    $data['context']['attribution']['last_touch'] = $decoded['last_touch'];
-                }
-                $data['attribution_snapshot'] = [
-                    'first_touch' => $decoded['first_touch'] ?? [],
-                    'last_touch' => $decoded['last_touch'] ?? [],
-                    'anonymous_id' => $data['anonymous_id'] ?? null,
-                    'session_id' => $data['session_id'] ?? null,
-                ];
+                $data = CheckoutIdentitySnapshot::applyToEventData($data, $decoded);
             }
         }
         return $data;

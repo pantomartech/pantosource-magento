@@ -40,8 +40,14 @@ class CommerceFields
         if (isset($data['product_id']) && $data['product_id'] !== '' && $data['product_id'] !== null) {
             $product['product_id'] = (string) $data['product_id'];
         }
-        if (isset($data['variation_id']) && $data['variation_id'] !== '' && $data['variation_id'] !== null) {
+        if (isset($data['variation_id']) && $data['variation_id'] !== '' && $data['variation_id'] !== null
+            && (string) $data['variation_id'] !== '0') {
             $product['variation_id'] = (string) $data['variation_id'];
+            $product['variant_id'] = (string) $data['variation_id'];
+        } elseif (isset($data['variant_id']) && $data['variant_id'] !== '' && $data['variant_id'] !== null
+            && (string) $data['variant_id'] !== '0') {
+            $product['variant_id'] = (string) $data['variant_id'];
+            $product['variation_id'] = (string) $data['variant_id'];
         }
         $name = '';
         if (isset($data['product_name'])) {
@@ -62,6 +68,34 @@ class CommerceFields
         } elseif (isset($data['unit_price']) && is_numeric($data['unit_price'])) {
             $product['price'] = (float) $data['unit_price'];
         }
+        $listName = '';
+        if (isset($data['list_name']) && (string) $data['list_name'] !== '') {
+            $listName = (string) $data['list_name'];
+        } elseif (isset($data['list_type']) && (string) $data['list_type'] !== '') {
+            $listName = (string) $data['list_type'];
+        }
+        if ($listName !== '') {
+            $product['list_name'] = $listName;
+        }
         return $product;
+    }
+
+    /**
+     * Catalog variant id for a commerce line (skip Magento `0` placeholders).
+     *
+     * @param array<string, mixed> $item
+     */
+    public static function lineVariantId(array $item): string
+    {
+        foreach (['variation_id', 'variant_id'] as $key) {
+            if (!isset($item[$key]) || $item[$key] === '' || $item[$key] === null) {
+                continue;
+            }
+            $val = (string) $item[$key];
+            if ($val !== '0') {
+                return $val;
+            }
+        }
+        return '';
     }
 }

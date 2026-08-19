@@ -12,6 +12,7 @@ use Panto\Source\Api\ConfigInterface;
 use Panto\Source\Helper\BrowserContextBridge;
 use Panto\Source\Helper\CanonicalContextPath;
 use Panto\Source\Helper\ExternalId;
+use Panto\Source\Helper\MatchingSignalFields;
 use Panto\Source\Helper\PlatformString;
 
 class PayloadBuilder
@@ -64,6 +65,10 @@ class PayloadBuilder
         }
 
         $sid = (int) $store->getId();
+        $storedIp = MatchingSignalFields::nonempty($data['last_client_ip'] ?? '');
+        $preferStoredIp = $storedIp !== ''
+            && (bool) filter_var($storedIp, FILTER_VALIDATE_IP)
+            && !MatchingSignalFields::hasLiveBrowserCookies($data);
         $data = $this->browserContextBridge->mergeIntoData($data);
         $data = $this->attachMetaBrowserIdsFromCookies($data, $sid);
 
@@ -98,7 +103,7 @@ class PayloadBuilder
         ];
 
         if ($this->config->hasTrackingConsent($sid) && $this->config->isEnabled($sid)) {
-            $ip = $this->getClientIp();
+            $ip = $preferStoredIp ? $storedIp : $this->getClientIp();
             if ($ip !== '') {
                 $payload['network'] = ['client_ip' => $ip];
             }
@@ -147,6 +152,9 @@ class PayloadBuilder
             'hashed_user',
             'attribution_snapshot',
             'browser_fingerprint',
+            'last_client_ip',
+            'last_user_agent',
+            'last_cookies',
         ];
         $out = $data;
         foreach ($strip as $key) {
@@ -244,6 +252,8 @@ class PayloadBuilder
             $ua = (string) $ctx['user_agent'];
         } elseif (!empty($ctx['device']['user_agent'])) {
             $ua = (string) $ctx['device']['user_agent'];
+        } elseif (!empty($data['last_user_agent'])) {
+            $ua = (string) $data['last_user_agent'];
         } elseif ($consent) {
             $ua = (string) $this->httpRequest->getServer('HTTP_USER_AGENT', '');
         }
@@ -316,8 +326,7 @@ class PayloadBuilder
                 if (!is_array($item)) {
                     continue;
                 }
-                $variantId = isset($item['variation_id']) ? (string) $item['variation_id']
-                    : (isset($item['variant_id']) ? (string) $item['variant_id'] : '');
+                $variantId = CommerceFields::lineVariantId($item);
                 $items[] = array_filter([
                     'id' => isset($item['product_id']) ? (string) $item['product_id'] : '',
                     'parent_id' => isset($item['parent_id']) ? (string) $item['parent_id'] : '',
@@ -356,9 +365,11 @@ class PayloadBuilder
             $window = $this->attributionWindow->readCurrent($storeId);
             if (!empty($window['first_touch']) && is_array($window['first_touch'])) {
                 $first = array_merge($window['first_touch'], $first);
+                $first = MatchingSignalFields::union($window['first_touch'], $first);
             }
             if (!empty($window['last_touch']) && is_array($window['last_touch'])) {
                 $last = array_merge($window['last_touch'], $last);
+                $last = MatchingSignalFields::union($window['last_touch'], $last);
             }
             if (!empty($window['meta']) && is_array($window['meta'])) {
                 $metaCtx = array_merge($window['meta'], $metaCtx);
@@ -383,9 +394,14 @@ class PayloadBuilder
             $snap = $data['attribution_snapshot'];
             if (!empty($snap['first_touch']) && is_array($snap['first_touch'])) {
                 $first = array_merge($snap['first_touch'], $first);
+                $first = MatchingSignalFields::union($snap['first_touch'], $first);
             }
             if (!empty($snap['last_touch']) && is_array($snap['last_touch'])) {
                 $last = array_merge($snap['last_touch'], $last);
+                $last = MatchingSignalFields::union($snap['last_touch'], $last);
+            }
+            if (!empty($snap['last_cookies']) && is_array($snap['last_cookies'])) {
+                $last = MatchingSignalFields::union($last, $snap['last_cookies']);
             }
         }
 
@@ -403,7 +419,13 @@ class PayloadBuilder
             $attribution['meta'] = $meta;
         }
 
-        return ['attribution' => $attribution];
+        $marketing = ['attribution' => $attribution];
+        $cookies = MatchingSignalFields::cookiesFromSources([$data, $last, $first]);
+        if ($cookies !== []) {
+            $marketing['cookies'] = $cookies;
+        }
+
+        return $marketing;
     }
 
     /**
@@ -426,6 +448,8 @@ class PayloadBuilder
                 $data[$field] = $raw;
             }
         }
+
+        $data = MatchingSignalFields::fillFromAttribution($data);
 
         // Synthesise fbc from fbclid query param when _fbc cookie is absent.
         if (empty($data['fbc'])) {
@@ -463,7 +487,7 @@ class PayloadBuilder
     {
         $ext = [
             'magento' => [
-                'module_version' => '1.2.2',
+                'module_version' => '1.2.3',
             ],
         ];
         $journeyId = $this->resolveJourneyId();
@@ -521,21 +545,12 @@ class PayloadBuilder
 
     private function getClientIp(): string
     {
-        $headers = ['HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'];
-        foreach ($headers as $h) {
-            $raw = (string) $this->httpRequest->getServer($h, '');
-            if ($raw === '') {
-                continue;
-            }
-            if ($h === 'HTTP_X_FORWARDED_FOR') {
-                $parts = explode(',', $raw);
-                $raw = trim($parts[0]);
-            }
-            if (filter_var($raw, FILTER_VALIDATE_IP)) {
-                return $raw;
-            }
-        }
-        return '';
+        return MatchingSignalFields::firstValidIp([
+            (string) $this->httpRequest->getServer('HTTP_CF_CONNECTING_IP', ''),
+            (string) $this->httpRequest->getServer('HTTP_X_REAL_IP', ''),
+            (string) $this->httpRequest->getServer('HTTP_X_FORWARDED_FOR', ''),
+            (string) $this->httpRequest->getServer('REMOTE_ADDR', ''),
+        ]);
     }
 
     private function nowIsoUtc(): string

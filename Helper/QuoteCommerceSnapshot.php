@@ -25,17 +25,23 @@ class QuoteCommerceSnapshot
                 if (!is_object($item)) {
                     continue;
                 }
+                $productId = method_exists($item, 'getProductId') ? (int) $item->getProductId() : 0;
                 $qty = method_exists($item, 'getQty') ? (float) $item->getQty() : 0.0;
                 $rowTotal = method_exists($item, 'getRowTotal') ? (float) $item->getRowTotal() : 0.0;
                 $price = method_exists($item, 'getPrice') ? (float) $item->getPrice() : 0.0;
                 $unitPrice = $qty > 0 && $rowTotal > 0 ? $rowTotal / $qty : $price;
-                $items[] = [
-                    'product_id' => method_exists($item, 'getProductId') ? (int) $item->getProductId() : 0,
+                $line = [
+                    'product_id' => $productId,
                     'title' => method_exists($item, 'getName') ? (string) $item->getName() : '',
                     'sku' => method_exists($item, 'getSku') ? (string) $item->getSku() : '',
                     'quantity' => $qty,
                     'unit_price' => $unitPrice,
                 ];
+                $variationId = QuoteLineIds::variantId($item, $productId);
+                if ($variationId > 0) {
+                    $line['variation_id'] = $variationId;
+                }
+                $items[] = $line;
             }
         } catch (\Throwable) {
             $items = [];

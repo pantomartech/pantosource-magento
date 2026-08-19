@@ -7,6 +7,7 @@ use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Framework\Stdlib\Cookie\CookieMetadataFactory;
 use Magento\Framework\Stdlib\CookieManagerInterface;
 use Panto\Source\Api\ConfigInterface;
+use Panto\Source\Helper\MatchingSignalFields;
 
 /**
  * Persistent 30-day attribution window in cookie (Woo pantosource_capture_attribution_window parity).
@@ -69,43 +70,41 @@ class AttributionWindowCapture
             $touchParams['referrer'] = $referrer;
         }
 
-        if (!AttributionGuardrails::shouldUpdateLastTouch($touchParams, $shopHost)) {
-            return [
-                'first_touch' => $first,
-                'last_touch' => $last,
-                'meta' => $this->buildMetaContext($first, $last, $capturedAt, $storeId),
-            ];
-        }
-
+        $shouldUpdate = AttributionGuardrails::shouldUpdateLastTouch($touchParams, $shopHost);
         $now = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z');
         $hasIncoming = false;
 
-        foreach (self::ATTRIBUTION_KEYS as $key) {
-            if (!isset($incoming[$key]) || !is_string($incoming[$key]) || trim($incoming[$key]) === '') {
-                continue;
+        if ($shouldUpdate) {
+            foreach (self::ATTRIBUTION_KEYS as $key) {
+                if (!isset($incoming[$key]) || !is_string($incoming[$key]) || trim($incoming[$key]) === '') {
+                    continue;
+                }
+                $val = trim($incoming[$key]);
+                $hasIncoming = true;
+                if (empty($first[$key])) {
+                    $first[$key] = $val;
+                }
+                $last[$key] = $val;
             }
-            $val = trim($incoming[$key]);
-            $hasIncoming = true;
-            if (empty($first[$key])) {
-                $first[$key] = $val;
+
+            if ($landingUrl !== '') {
+                if (empty($first['landing_url'])) {
+                    $first['landing_url'] = $landingUrl;
+                }
+                $last['landing_url'] = $landingUrl;
             }
-            $last[$key] = $val;
+            if ($referrer !== '') {
+                if (empty($first['referrer'])) {
+                    $first['referrer'] = $referrer;
+                }
+                $last['referrer'] = $referrer;
+            }
         }
 
-        if ($landingUrl !== '') {
-            if (empty($first['landing_url'])) {
-                $first['landing_url'] = $landingUrl;
-            }
-            $last['landing_url'] = $landingUrl;
-        }
-        if ($referrer !== '') {
-            if (empty($first['referrer'])) {
-                $first['referrer'] = $referrer;
-            }
-            $last['referrer'] = $referrer;
-        }
+        $first = MatchingSignalFields::union($first, $incoming);
+        $last = MatchingSignalFields::union($last, $incoming);
 
-        if ($hasIncoming || $landingUrl !== '' || $referrer !== '') {
+        if ($hasIncoming || $landingUrl !== '' || $referrer !== '' || MatchingSignalFields::hasAnyMatching($incoming)) {
             $first['captured_at'] = $first['captured_at'] ?? $now;
             $last['captured_at'] = $now;
             $capturedAt = $now;

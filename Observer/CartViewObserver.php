@@ -8,6 +8,7 @@ use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
+use Panto\Source\Helper\QuoteLineIds;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\EventDispatcher;
 
@@ -41,7 +42,10 @@ class CartViewObserver implements ObserverInterface
             $productId = (int) $item->getProductId();
             $parentItem = $item->getParentItem();
             $parentId = $parentItem ? (int) $parentItem->getProductId() : $productId;
-            $variationId = $parentItem ? $productId : 0;
+            $variationId = QuoteLineIds::variantId($item, $productId);
+            if ($variationId <= 0 && $parentItem) {
+                $variationId = $productId;
+            }
 
             $qty = (float) $item->getQty();
             $unitPrice = $qty > 0 ? (float) $item->getRowTotal() / $qty : (float) $item->getPrice();

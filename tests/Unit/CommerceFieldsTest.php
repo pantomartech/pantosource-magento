@@ -58,4 +58,26 @@ final class CommerceFieldsTest extends TestCase
         $this->assertSame('Hat', $product['name']);
         $this->assertSame(12.0, $product['price']);
     }
+
+    public function testHoistProductMapsVariationIdToVariantId(): void
+    {
+        $product = CommerceFields::hoistProduct([
+            'product_id' => '11',
+            'variation_id' => '22',
+            'product_name' => 'Blue Shirt',
+            'unit_price' => 19.99,
+        ]);
+        $this->assertSame('11', $product['product_id']);
+        $this->assertSame('22', $product['variation_id']);
+        $this->assertSame('22', $product['variant_id']);
+        $this->assertSame('Blue Shirt', $product['name']);
+        $this->assertSame(19.99, $product['price']);
+    }
+
+    public function testLineVariantIdSkipsZeroAndPrefersVariationId(): void
+    {
+        $this->assertSame('', CommerceFields::lineVariantId(['product_id' => '11', 'variation_id' => 0]));
+        $this->assertSame('22', CommerceFields::lineVariantId(['variation_id' => 0, 'variant_id' => '22']));
+        $this->assertSame('33', CommerceFields::lineVariantId(['variation_id' => '33', 'variant_id' => '99']));
+    }
 }

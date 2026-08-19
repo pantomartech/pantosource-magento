@@ -15,7 +15,6 @@ use Magento\Framework\UrlInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Api\ConfigInterface;
 use Panto\Source\Helper\QuoteCommerceSnapshot;
-use Panto\Source\Model\AttributionGuardrails;
 use Panto\Source\Model\AttributionWindowCapture;
 use Panto\Source\Model\EventDispatcher;
 use Panto\Source\Model\EventRegistry;
@@ -143,12 +142,7 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
             $referrer = $data['context']['page']['referrer'];
         }
 
-        $touchParams = array_merge($incoming, ['referrer' => $referrer]);
-        if (!AttributionGuardrails::shouldUpdateLastTouch($touchParams, $shopHost)) {
-            $window = $this->attributionWindow->readCurrent($storeId);
-        } else {
-            $window = $this->attributionWindow->capture($storeId, $incoming, $shopHost, $landingUrl, $referrer);
-        }
+        $window = $this->attributionWindow->capture($storeId, $incoming, $shopHost, $landingUrl, $referrer);
 
         if (!isset($data['context']) || !is_array($data['context'])) {
             $data['context'] = [];

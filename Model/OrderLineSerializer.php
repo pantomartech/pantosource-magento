@@ -5,6 +5,7 @@ namespace Panto\Source\Model;
 
 use Magento\Catalog\Api\CategoryRepositoryInterface;
 use Magento\Sales\Api\Data\OrderInterface;
+use Panto\Source\Helper\QuoteLineIds;
 
 class OrderLineSerializer
 {
@@ -26,7 +27,10 @@ class OrderLineSerializer
             $productId = (int) $item->getProductId();
             $parentItem = $item->getParentItem();
             $parentId = $parentItem ? (int) $parentItem->getProductId() : $productId;
-            $variationId = $parentItem ? $productId : 0;
+            $variationId = QuoteLineIds::variantId($item, $productId);
+            if ($variationId <= 0 && $parentItem) {
+                $variationId = $productId;
+            }
 
             // Resolve first product category; cache by category ID to avoid repeated repo calls.
             $category = '';
