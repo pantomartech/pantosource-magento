@@ -27,7 +27,8 @@ class PayloadBuilder
         private readonly CustomerSession $customerSession,
         private readonly CustomerProfileBuilder $customerProfileBuilder,
         private readonly AttributionWindowCapture $attributionWindow,
-        private readonly BrowserContextBridge $browserContextBridge
+        private readonly BrowserContextBridge $browserContextBridge,
+        private readonly LastKnownIdentityStore $lastKnownIdentity
     ) {
     }
 
@@ -65,6 +66,7 @@ class PayloadBuilder
         }
 
         $sid = (int) $store->getId();
+        $data = $this->lastKnownIdentity->applyToData($data, $sid);
         $storedIp = MatchingSignalFields::nonempty($data['last_client_ip'] ?? '');
         $preferStoredIp = $storedIp !== ''
             && (bool) filter_var($storedIp, FILTER_VALIDATE_IP)
@@ -108,6 +110,8 @@ class PayloadBuilder
                 $payload['network'] = ['client_ip' => $ip];
             }
         }
+
+        $this->lastKnownIdentity->persistFromData($data, $sid);
 
         return $payload;
     }
