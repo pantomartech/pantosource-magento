@@ -10,6 +10,7 @@ use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Panto\Source\Helper\CheckoutInitSessionKey;
 use Panto\Source\Helper\QuoteLineIds;
+use Panto\Source\Helper\QuoteOrderTotals;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\CheckoutIdentityRepository;
 use Panto\Source\Model\EventDispatcher;
@@ -91,6 +92,7 @@ class CheckoutInitObserver implements ObserverInterface
             'currency' => (string) $quote->getQuoteCurrencyCode(),
             'item_count' => (int) $quote->getItemsCount(),
             'items' => $items,
+            'order_totals' => QuoteOrderTotals::fromQuote($quote),
             'context' => StorefrontContext::fromRequest($this->request, 'checkout', 'Checkout'),
         ];
         $this->checkoutIdentity->persistToCheckoutSession($data);

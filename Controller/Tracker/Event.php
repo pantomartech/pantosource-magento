@@ -191,7 +191,8 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         $needsItems = empty($data['items']) || !is_array($data['items']);
         $needsTotal = !isset($data['cart_total']) || $data['cart_total'] === '';
         $needsCurrency = !isset($data['currency']) || $data['currency'] === '';
-        if (!$needsItems && !$needsTotal && !$needsCurrency) {
+        $needsTotals = empty($data['order_totals']) || !is_array($data['order_totals']);
+        if (!$needsItems && !$needsTotal && !$needsCurrency && !$needsTotals) {
             return $data;
         }
         try {
@@ -207,6 +208,9 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         }
         if ($needsCurrency && $snapshot['currency'] !== '') {
             $data['currency'] = $snapshot['currency'];
+        }
+        if ($needsTotals) {
+            $data['order_totals'] = $snapshot['order_totals'];
         }
         return $data;
     }

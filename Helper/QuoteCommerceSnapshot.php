@@ -9,11 +9,21 @@ namespace Panto\Source\Helper;
 class QuoteCommerceSnapshot
 {
     /**
-     * @return array{cart_total: string, currency: string, items: list<array<string, mixed>>}
+     * @return array{
+     *   cart_total: string,
+     *   currency: string,
+     *   items: list<array<string, mixed>>,
+     *   order_totals: array{tax_total: float, shipping_total: float, discount_total: float}
+     * }
      */
     public static function fromQuote(mixed $quote): array
     {
-        $empty = ['cart_total' => '', 'currency' => '', 'items' => []];
+        $empty = [
+            'cart_total' => '',
+            'currency' => '',
+            'items' => [],
+            'order_totals' => QuoteOrderTotals::fromQuote(null),
+        ];
         if (!is_object($quote) || !method_exists($quote, 'getId') || !$quote->getId()) {
             return $empty;
         }
@@ -30,8 +40,22 @@ class QuoteCommerceSnapshot
                 $rowTotal = method_exists($item, 'getRowTotal') ? (float) $item->getRowTotal() : 0.0;
                 $price = method_exists($item, 'getPrice') ? (float) $item->getPrice() : 0.0;
                 $unitPrice = $qty > 0 && $rowTotal > 0 ? $rowTotal / $qty : $price;
+                $parentId = $productId;
+                if (is_callable([$item, 'getParentItem'])) {
+                    try {
+                        $parent = $item->getParentItem();
+                        if (is_object($parent)) {
+                            $resolvedParent = QuoteItemFields::int($parent, 'product_id', 'getProductId');
+                            if ($resolvedParent > 0) {
+                                $parentId = $resolvedParent;
+                            }
+                        }
+                    } catch (\Throwable) {
+                    }
+                }
                 $line = [
                     'product_id' => $productId,
+                    'parent_id' => $parentId,
                     'title' => method_exists($item, 'getName') ? (string) $item->getName() : '',
                     'sku' => method_exists($item, 'getSku') ? (string) $item->getSku() : '',
                     'quantity' => $qty,
@@ -63,6 +87,7 @@ class QuoteCommerceSnapshot
             'cart_total' => $cartTotal,
             'currency' => $currency,
             'items' => $items,
+            'order_totals' => QuoteOrderTotals::fromQuote($quote),
         ];
     }
 }

@@ -9,6 +9,7 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Panto\Source\Helper\QuoteLineIds;
+use Panto\Source\Helper\QuoteOrderTotals;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\EventDispatcher;
 
@@ -85,6 +86,7 @@ class CartViewObserver implements ObserverInterface
             'currency'   => (string) $quote->getQuoteCurrencyCode(),
             'item_count' => (int) $quote->getItemsCount(),
             'items'      => $items,
+            'order_totals' => QuoteOrderTotals::fromQuote($quote),
             'context'    => StorefrontContext::fromRequest($this->request, 'cart', 'Shopping Cart'),
         ];
         $this->dispatcher->dispatch('view_cart', $data);

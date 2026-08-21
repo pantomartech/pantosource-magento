@@ -56,6 +56,7 @@ class OrderCancelObserver implements ObserverInterface
             'total'    => (string) $order->getGrandTotal(),
             'currency' => (string) $order->getOrderCurrencyCode(),
             'items'    => $this->orderLineSerializer->getItems($order),
+            'order_totals' => $this->orderLineSerializer->orderTotals($order),
             'customer_id' => (int) $order->getCustomerId(),
             'billing_email' => (string) $order->getCustomerEmail(),
             'customer_profile' => $this->customerProfileBuilder->profileFromOrder($order),

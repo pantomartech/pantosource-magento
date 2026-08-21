@@ -44,7 +44,7 @@ class PaymentInfoObserver implements ObserverInterface
         } catch (\Throwable) {
         }
 
-        $snapshot = ['cart_total' => '', 'currency' => '', 'items' => []];
+        $snapshot = ['cart_total' => '', 'currency' => '', 'items' => [], 'order_totals' => ['tax_total' => 0.0, 'shipping_total' => 0.0, 'discount_total' => 0.0]];
         try {
             $snapshot = QuoteCommerceSnapshot::fromQuote($this->checkoutSession->getQuote());
         } catch (\Throwable) {
@@ -55,6 +55,7 @@ class PaymentInfoObserver implements ObserverInterface
             'cart_total'     => $snapshot['cart_total'],
             'currency'       => $snapshot['currency'],
             'items'          => $snapshot['items'],
+            'order_totals'   => $snapshot['order_totals'],
             'context'        => StorefrontContext::fromRequest($this->request, 'checkout', 'Checkout'),
         ];
         try {

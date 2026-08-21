@@ -51,6 +51,7 @@ class ShipmentSaveObserver implements ObserverInterface
             'total' => (string) $order->getGrandTotal(),
             'currency' => (string) $order->getOrderCurrencyCode(),
             'items' => $this->orderLineSerializer->getItems($order),
+            'order_totals' => $this->orderLineSerializer->orderTotals($order),
             'context' => StorefrontContext::fromRequest($this->request, 'admin', 'Shipment'),
         ];
         $data = $this->checkoutIdentity->resolveIdentityFromOrder($data, $orderId);
