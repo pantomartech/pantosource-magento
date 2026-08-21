@@ -11,7 +11,7 @@ class AttributionMetaBuilder
     public const ATTRIBUTION_LOOKBACK_DAYS = 30;
 
     /** @var list<string> */
-    private const CLICK_ID_KEYS = ['gclid', 'fbclid', 'ttclid', 'msclkid', 'gbraid', 'wbraid'];
+    private const CLICK_ID_KEYS = ['gclid', 'fbclid', 'ttclid', 'msclkid', 'gbraid', 'wbraid', 'dclid', 'gad_source'];
 
     /**
      * @param array<string, mixed> $touch

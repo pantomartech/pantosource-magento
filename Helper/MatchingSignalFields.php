@@ -19,6 +19,8 @@ class MatchingSignalFields
         'msclkid',
         'gbraid',
         'wbraid',
+        'dclid',
+        'gad_source',
     ];
 
     /** @var list<string> */

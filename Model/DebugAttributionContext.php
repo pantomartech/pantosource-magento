@@ -9,7 +9,7 @@ namespace Panto\Source\Model;
 class DebugAttributionContext
 {
     /** @var list<string> */
-    private const CLICK_ID_KEYS = ['gclid', 'fbclid', 'ttclid', 'msclkid', 'gbraid', 'wbraid'];
+    private const CLICK_ID_KEYS = ['gclid', 'fbclid', 'ttclid', 'msclkid', 'gbraid', 'wbraid', 'dclid', 'gad_source'];
 
     /**
      * @param array<string, mixed> $payload

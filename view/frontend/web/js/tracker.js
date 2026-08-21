@@ -141,7 +141,9 @@ define([], function () {
             'ttclid',
             'msclkid',
             'gbraid',
-            'wbraid'
+            'wbraid',
+            'dclid',
+            'gad_source'
         ];
         var out = {};
         keys.forEach(function (k) {

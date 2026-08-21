@@ -29,6 +29,8 @@ class AttributionWindowCapture
         'msclkid',
         'gbraid',
         'wbraid',
+        'dclid',
+        'gad_source',
         'fbp',
         'fbc',
         'ttp',

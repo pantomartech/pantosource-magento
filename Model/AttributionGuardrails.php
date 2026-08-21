@@ -32,7 +32,7 @@ class AttributionGuardrails
     ];
 
     /** @var list<string> */
-    private const CLICK_ID_KEYS = ['gclid', 'fbclid', 'ttclid', 'msclkid', 'gbraid', 'wbraid'];
+    private const CLICK_ID_KEYS = ['gclid', 'fbclid', 'ttclid', 'msclkid', 'gbraid', 'wbraid', 'dclid', 'gad_source'];
 
     /** @var list<string> */
     private const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign'];
