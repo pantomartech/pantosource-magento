@@ -6,7 +6,6 @@ namespace Panto\Source\Model;
 use Magento\Customer\Model\Address as CustomerAddress;
 use Magento\Customer\Model\Customer;
 use Magento\Directory\Model\CountryFactory;
-use Magento\Sales\Api\Data\OrderAddressInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 
 /**
@@ -24,17 +23,34 @@ class CustomerProfileBuilder
      */
     public function profileFromOrder(OrderInterface $order): array
     {
-        $billing = $this->postalFromOrderAddress($order->getBillingAddress());
-        $shipping = $this->postalFromOrderAddress($order->getShippingAddress());
+        $billing = $this->postalFromAddress($order->getBillingAddress());
+        $shipping = $this->postalFromAddress($order->getShippingAddress());
         $ba = $order->getBillingAddress();
+        $sa = $order->getShippingAddress();
         $fn = $ba ? trim((string) $ba->getFirstname()) : '';
         $ln = $ba ? trim((string) $ba->getLastname()) : '';
+        if ($fn === '' && $sa) {
+            $fn = trim((string) $sa->getFirstname());
+        }
+        if ($ln === '' && $sa) {
+            $ln = trim((string) $sa->getLastname());
+        }
+        if ($fn === '' && method_exists($order, 'getCustomerFirstname')) {
+            $fn = trim((string) $order->getCustomerFirstname());
+        }
+        if ($ln === '' && method_exists($order, 'getCustomerLastname')) {
+            $ln = trim((string) $order->getCustomerLastname());
+        }
+        $phone = $ba ? trim((string) $ba->getTelephone()) : '';
+        if ($phone === '' && $sa) {
+            $phone = trim((string) $sa->getTelephone());
+        }
         $profile = array_filter(
             [
                 'first_name' => $fn,
                 'last_name' => $ln,
                 'full_name' => trim($fn . ' ' . $ln),
-                'phone' => $ba ? trim((string) $ba->getTelephone()) : '',
+                'phone' => $phone,
                 'company' => $ba ? trim((string) $ba->getCompany()) : '',
                 'billing_address' => $billing,
                 'shipping_address' => $shipping,
@@ -113,21 +129,75 @@ class CustomerProfileBuilder
                 }
             }
         }
+        if (!isset($profile['phone']) && $defShip) {
+            $a = $customer->getAddressById($defShip);
+            if ($a instanceof CustomerAddress) {
+                $t = trim((string) $a->getTelephone());
+                if ($t !== '') {
+                    $profile['phone'] = $t;
+                }
+            }
+        }
+        return $profile;
+    }
+
+    /**
+     * Quote or order address duck-type (getStreet, getCity, getRegionCode, …).
+     *
+     * @return array<string, mixed>
+     */
+    public function profileFromAddressObjects(?object $billing, ?object $shipping): array
+    {
+        $billPostal = $this->postalFromAddress($billing);
+        $shipPostal = $this->postalFromAddress($shipping);
+        $fn = $this->addressString($billing, 'getFirstname');
+        $ln = $this->addressString($billing, 'getLastname');
+        if ($fn === '') {
+            $fn = $this->addressString($shipping, 'getFirstname');
+        }
+        if ($ln === '') {
+            $ln = $this->addressString($shipping, 'getLastname');
+        }
+        $phone = $this->addressString($billing, 'getTelephone');
+        if ($phone === '') {
+            $phone = $this->addressString($shipping, 'getTelephone');
+        }
+        $profile = array_filter(
+            [
+                'first_name' => $fn,
+                'last_name' => $ln,
+                'full_name' => trim($fn . ' ' . $ln),
+                'phone' => $phone,
+                'company' => $this->addressString($billing, 'getCompany'),
+                'billing_address' => $billPostal,
+                'shipping_address' => $shipPostal,
+            ],
+            static function (mixed $v): bool {
+                if (is_array($v)) {
+                    return $v !== [];
+                }
+                return is_string($v) && $v !== '';
+            }
+        );
+        if (isset($profile['full_name']) && $profile['full_name'] === '') {
+            unset($profile['full_name']);
+        }
         return $profile;
     }
 
     /**
      * @return array<string, string>
      */
-    private function postalFromOrderAddress(?OrderAddressInterface $addr): array
+    private function postalFromAddress(?object $addr): array
     {
         if ($addr === null) {
             return [];
         }
-        $street = $addr->getStreet() ?? [];
+        $street = method_exists($addr, 'getStreet') ? ($addr->getStreet() ?? []) : [];
+        $street = is_array($street) ? $street : [(string) $street];
         $line1 = isset($street[0]) ? trim((string) $street[0]) : '';
         $line2 = isset($street[1]) ? trim((string) $street[1]) : '';
-        $cc = trim((string) $addr->getCountryId());
+        $cc = $this->addressString($addr, 'getCountryId');
         $countryName = $cc;
         if ($cc !== '') {
             try {
@@ -139,26 +209,37 @@ class CustomerProfileBuilder
                 $countryName = $cc;
             }
         }
-        $region = trim((string) $addr->getRegion());
-        $regionCode = trim((string) ($addr->getRegionCode() ?: $addr->getRegion()));
+        $region = $this->addressString($addr, 'getRegion');
+        $regionCode = $this->addressString($addr, 'getRegionCode');
+        if ($regionCode === '') {
+            $regionCode = $region;
+        }
 
         return array_filter(
             [
                 'line1' => $line1,
                 'line2' => $line2,
-                'city' => trim((string) $addr->getCity()),
+                'city' => $this->addressString($addr, 'getCity'),
                 'region' => $region !== '' ? $region : $regionCode,
                 'region_code' => $regionCode !== '' ? $regionCode : $region,
-                'postal_code' => trim((string) $addr->getPostcode()),
+                'postal_code' => $this->addressString($addr, 'getPostcode'),
                 'country' => $countryName,
                 'country_code' => $cc,
-                'phone' => trim((string) $addr->getTelephone()),
-                'first_name' => trim((string) $addr->getFirstname()),
-                'last_name' => trim((string) $addr->getLastname()),
-                'company' => trim((string) $addr->getCompany()),
+                'phone' => $this->addressString($addr, 'getTelephone'),
+                'first_name' => $this->addressString($addr, 'getFirstname'),
+                'last_name' => $this->addressString($addr, 'getLastname'),
+                'company' => $this->addressString($addr, 'getCompany'),
             ],
             static fn (string $v): bool => $v !== ''
         );
+    }
+
+    private function addressString(?object $addr, string $method): string
+    {
+        if ($addr === null || !method_exists($addr, $method)) {
+            return '';
+        }
+        return trim((string) $addr->$method());
     }
 
     /**

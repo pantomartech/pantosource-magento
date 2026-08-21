@@ -9,7 +9,9 @@ use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Panto\Source\Helper\QuoteCommerceSnapshot;
 use Panto\Source\Helper\StorefrontContext;
+use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
+use Panto\Source\Model\HashedPiiEnricher;
 
 /**
  * Observer for sales_order_payment_place_end — fires after payment info is saved,
@@ -22,7 +24,8 @@ class PaymentInfoObserver implements ObserverInterface
     public function __construct(
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
-        private readonly CheckoutSession $checkoutSession
+        private readonly CheckoutSession $checkoutSession,
+        private readonly CustomerProfileBuilder $customerProfileBuilder
     ) {
     }
 
@@ -54,6 +57,26 @@ class PaymentInfoObserver implements ObserverInterface
             'items'          => $snapshot['items'],
             'context'        => StorefrontContext::fromRequest($this->request, 'checkout', 'Checkout'),
         ];
+        try {
+            $quote = $this->checkoutSession->getQuote();
+            $billing = $quote && method_exists($quote, 'getBillingAddress') ? $quote->getBillingAddress() : null;
+            $shipping = $quote && method_exists($quote, 'getShippingAddress') ? $quote->getShippingAddress() : null;
+            $profile = $this->customerProfileBuilder->profileFromAddressObjects($billing, $shipping);
+            if ($profile !== []) {
+                $data['customer_profile'] = $profile;
+            }
+            $email = '';
+            if ($billing && method_exists($billing, 'getEmail')) {
+                $email = trim((string) $billing->getEmail());
+            }
+            if ($email === '' && $quote && method_exists($quote, 'getCustomerEmail')) {
+                $email = trim((string) $quote->getCustomerEmail());
+            }
+            if ($email !== '') {
+                $data['billing_email'] = $email;
+            }
+        } catch (\Throwable) {
+        }
         $this->checkoutSession->setData(self::SESSION_KEY, 1);
         $this->dispatcher->dispatch('add_payment_info', $data);
     }

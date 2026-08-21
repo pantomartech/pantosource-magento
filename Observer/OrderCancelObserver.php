@@ -7,7 +7,9 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Panto\Source\Helper\StorefrontContext;
+use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
+use Panto\Source\Model\HashedPiiEnricher;
 use Panto\Source\Model\OrderLineSerializer;
 
 /**
@@ -19,7 +21,9 @@ class OrderCancelObserver implements ObserverInterface
     public function __construct(
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
-        private readonly OrderLineSerializer $orderLineSerializer
+        private readonly OrderLineSerializer $orderLineSerializer,
+        private readonly CustomerProfileBuilder $customerProfileBuilder,
+        private readonly HashedPiiEnricher $hashedPiiEnricher
     ) {
     }
 
@@ -52,8 +56,12 @@ class OrderCancelObserver implements ObserverInterface
             'total'    => (string) $order->getGrandTotal(),
             'currency' => (string) $order->getOrderCurrencyCode(),
             'items'    => $this->orderLineSerializer->getItems($order),
+            'customer_id' => (int) $order->getCustomerId(),
+            'billing_email' => (string) $order->getCustomerEmail(),
+            'customer_profile' => $this->customerProfileBuilder->profileFromOrder($order),
             'context'  => StorefrontContext::fromRequest($this->request, '', ''),
         ];
+        $data = $this->hashedPiiEnricher->enrich($order, $data, (int) $order->getStoreId());
         $this->dispatcher->dispatch('magento_order_cancelled', $data);
     }
 }

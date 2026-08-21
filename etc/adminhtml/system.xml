@@ -48,7 +48,8 @@
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
                 <field id="hashed_pii" translate="label" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Enable Hashed PII (order payloads)</label>
+                    <label>Enable Hashed PII</label>
+                    <comment>When enabled, SHA-256 identifiers are added on events that carry customer email or profile (not only orders). Default is off; plaintext profile is still sent so ad platforms can hash at publish time.</comment>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
                 <field id="debug_mode" translate="label" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">

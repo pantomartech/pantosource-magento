@@ -51,4 +51,40 @@ class HashedPiiHasher
         }
         return $out;
     }
+
+    /**
+     * Hash Advanced Matching fields from a canonical customer_profile (billing first, shipping fills).
+     *
+     * @param array<string, mixed> $profile
+     * @return array<string, string>
+     */
+    public static function fromProfile(array $profile, string $email = ''): array
+    {
+        $billing = isset($profile['billing_address']) && is_array($profile['billing_address'])
+            ? $profile['billing_address']
+            : [];
+        $shipping = isset($profile['shipping_address']) && is_array($profile['shipping_address'])
+            ? $profile['shipping_address']
+            : [];
+        $pick = static function (array $keys) use ($profile, $billing, $shipping): string {
+            foreach ($keys as $key) {
+                foreach ([$profile, $billing, $shipping] as $src) {
+                    if (!empty($src[$key]) && is_string($src[$key])) {
+                        return (string) $src[$key];
+                    }
+                }
+            }
+            return '';
+        };
+        return self::hashFields([
+            'email' => $email,
+            'phone' => $pick(['phone']),
+            'first_name' => $pick(['first_name']),
+            'last_name' => $pick(['last_name']),
+            'city' => $pick(['city']),
+            'state' => $pick(['region_code', 'region', 'state']),
+            'zip' => $pick(['postal_code', 'zip']),
+            'country' => $pick(['country_code', 'country']),
+        ]);
+    }
 }

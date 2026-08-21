@@ -37,6 +37,65 @@ final class HashedPiiEnricherTest extends TestCase
             HashedPiiHasher::hashFields(['phone' => '3054920600'])['phone_sha256'],
             $out['hashed_user']['phone_sha256']
         );
+        $this->assertSame(HashedPiiHasher::hash('fl'), $out['hashed_user']['state_sha256']);
+    }
+
+    public function testShippingAddressFillsWhenBillingEmpty(): void
+    {
+        $config = $this->createMock(ConfigInterface::class);
+        $config->method('isHashedPiiEnabled')->with(1)->willReturn(true);
+        $config->method('hasTrackingConsent')->with(1)->willReturn(true);
+        $enricher = new HashedPiiEnricher($config);
+        $shipping = new class {
+            public function getTelephone(): string
+            {
+                return '3055550100';
+            }
+
+            public function getFirstname(): string
+            {
+                return 'Ada';
+            }
+
+            public function getLastname(): string
+            {
+                return 'Lovelace';
+            }
+
+            public function getCity(): string
+            {
+                return 'Miami';
+            }
+
+            public function getRegion(): string
+            {
+                return 'Florida';
+            }
+
+            public function getRegionCode(): string
+            {
+                return 'FL';
+            }
+
+            public function getPostcode(): string
+            {
+                return '33101';
+            }
+
+            public function getCountryId(): string
+            {
+                return 'US';
+            }
+        };
+        $order = $this->createMock(OrderInterface::class);
+        $order->method('getStoreId')->willReturn(1);
+        $order->method('getCustomerEmail')->willReturn('ada@example.com');
+        $order->method('getBillingAddress')->willReturn(null);
+        $order->method('getShippingAddress')->willReturn($shipping);
+        $out = $enricher->enrich($order, [], 1);
+        $this->assertSame(HashedPiiHasher::hash('miami'), $out['hashed_user']['city_sha256']);
+        $this->assertSame(HashedPiiHasher::hash('fl'), $out['hashed_user']['state_sha256']);
+        $this->assertSame(HashedPiiHasher::hashFields(['phone' => '3055550100'])['phone_sha256'], $out['hashed_user']['phone_sha256']);
     }
 
     private function order(): OrderInterface
@@ -65,6 +124,11 @@ final class HashedPiiEnricherTest extends TestCase
             public function getRegion(): string
             {
                 return 'Florida';
+            }
+
+            public function getRegionCode(): string
+            {
+                return 'FL';
             }
 
             public function getPostcode(): string

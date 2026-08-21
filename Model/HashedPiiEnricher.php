@@ -29,29 +29,31 @@ class HashedPiiEnricher
 
         $email = (string) $order->getCustomerEmail();
         $billing = $order->getBillingAddress();
-        $phone = $billing ? (string) $billing->getTelephone() : '';
-        $first = $billing ? (string) $billing->getFirstname() : '';
-        $last = $billing ? (string) $billing->getLastname() : '';
-        $city = $billing ? (string) $billing->getCity() : '';
-        $state = '';
-        $zip = $billing ? (string) $billing->getPostcode() : '';
-        $country = $billing ? (string) $billing->getCountryId() : '';
-        if ($billing) {
-            $state = (string) $billing->getRegion();
-            if ($state === '' && method_exists($billing, 'getRegionCode')) {
-                $state = (string) $billing->getRegionCode();
+        $shipping = $order->getShippingAddress();
+        $pick = static function (?object $primary, ?object $fallback, string $method): string {
+            $value = '';
+            if ($primary && method_exists($primary, $method)) {
+                $value = trim((string) $primary->$method());
             }
+            if ($value === '' && $fallback && method_exists($fallback, $method)) {
+                $value = trim((string) $fallback->$method());
+            }
+            return $value;
+        };
+        $state = $pick($billing, $shipping, 'getRegionCode');
+        if ($state === '') {
+            $state = $pick($billing, $shipping, 'getRegion');
         }
 
         $data['hashed_user'] = HashedPiiHasher::hashFields([
             'email' => $email,
-            'phone' => $phone,
-            'first_name' => $first,
-            'last_name' => $last,
-            'city' => $city,
+            'phone' => $pick($billing, $shipping, 'getTelephone'),
+            'first_name' => $pick($billing, $shipping, 'getFirstname'),
+            'last_name' => $pick($billing, $shipping, 'getLastname'),
+            'city' => $pick($billing, $shipping, 'getCity'),
             'state' => $state,
-            'zip' => $zip,
-            'country' => $country,
+            'zip' => $pick($billing, $shipping, 'getPostcode'),
+            'country' => $pick($billing, $shipping, 'getCountryId'),
         ]);
 
         return $data;

@@ -39,4 +39,25 @@ final class HashedPiiHasherTest extends TestCase
         $out = HashedPiiHasher::hashFields(['email' => '', 'city' => '  ']);
         $this->assertSame([], $out);
     }
+
+    public function testFromProfileUsesShippingWhenBillingEmpty(): void
+    {
+        $out = HashedPiiHasher::fromProfile(
+            [
+                'shipping_address' => [
+                    'first_name' => 'Ada',
+                    'city' => 'Miami',
+                    'region_code' => 'FL',
+                    'postal_code' => '33101',
+                    'country_code' => 'US',
+                    'phone' => '+1 305 555 0100',
+                ],
+            ],
+            'ada@example.com'
+        );
+        $this->assertSame(hash('sha256', 'ada@example.com'), $out['email_sha256']);
+        $this->assertSame(hash('sha256', 'ada'), $out['first_name_sha256']);
+        $this->assertSame(hash('sha256', 'fl'), $out['state_sha256']);
+        $this->assertSame(hash('sha256', '13055550100'), $out['phone_sha256']);
+    }
 }

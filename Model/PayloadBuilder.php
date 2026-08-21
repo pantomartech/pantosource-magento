@@ -67,6 +67,23 @@ class PayloadBuilder
 
         $sid = (int) $store->getId();
         $data = $this->lastKnownIdentity->applyToData($data, $sid);
+        if (empty($data['customer_profile']) && $this->config->hasTrackingConsent($sid) && $this->customerSession->isLoggedIn()) {
+            $data['customer_profile'] = $this->customerProfileBuilder->profileFromCustomerModel(
+                $this->customerSession->getCustomer()
+            );
+        }
+        if (
+            empty($data['hashed_user'])
+            && $this->config->isHashedPiiEnabled($sid)
+            && $this->config->hasTrackingConsent($sid)
+        ) {
+            $profile = is_array($data['customer_profile'] ?? null) ? $data['customer_profile'] : [];
+            $email = (string) ($data['billing_email'] ?? $data['email'] ?? '');
+            $hashed = HashedPiiHasher::fromProfile($profile, $email);
+            if ($hashed !== []) {
+                $data['hashed_user'] = $hashed;
+            }
+        }
         $storedIp = MatchingSignalFields::nonempty($data['last_client_ip'] ?? '');
         $preferStoredIp = $storedIp !== ''
             && (bool) filter_var($storedIp, FILTER_VALIDATE_IP)

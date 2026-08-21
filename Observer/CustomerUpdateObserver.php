@@ -10,6 +10,7 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Panto\Source\Helper\FrontendArea;
 use Panto\Source\Helper\StorefrontContext;
+use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
 
 class CustomerUpdateObserver implements ObserverInterface
@@ -20,7 +21,8 @@ class CustomerUpdateObserver implements ObserverInterface
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
         private readonly CacheInterface $cache,
-        private readonly FrontendArea $frontendArea
+        private readonly FrontendArea $frontendArea,
+        private readonly CustomerProfileBuilder $customerProfileBuilder
     ) {
     }
 
@@ -45,6 +47,7 @@ class CustomerUpdateObserver implements ObserverInterface
         $data = [
             'customer_id' => $customerId,
             'email' => $email,
+            'customer_profile' => $this->customerProfileBuilder->profileFromCustomerModel($customer),
             'context' => StorefrontContext::fromRequest($this->request, 'account', 'Account'),
         ];
         $this->dispatcher->dispatch('magento_customer_updated', $data, 'identify');
