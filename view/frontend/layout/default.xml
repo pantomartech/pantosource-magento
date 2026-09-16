@@ -3,10 +3,10 @@
       xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <body>
         <referenceContainer name="head.additional">
-            <block class="Magento\Framework\View\Element\Template"
+            <block class="Panto\Source\Block\HeadMarker"
                    name="pantosource.head.marker"
                    template="Panto_Source::head-marker.phtml"
-                   cacheable="true"/>
+                   cacheable="false"/>
         </referenceContainer>
         <referenceContainer name="before.body.end">
             <block class="Panto\Source\Block\Tracker"
