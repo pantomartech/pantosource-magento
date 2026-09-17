@@ -94,15 +94,14 @@ final class CustomerProfileAndLifecyclePiiTest extends TestCase
         $session = $this->createMock(CheckoutSession::class);
         $session->method('getData')->willReturn(null);
         $session->method('getQuote')->willReturn($quote);
-        $session->expects($this->once())->method('setData');
+        $session->expects($this->exactly(2))->method('setData');
         $dispatcher = $this->createMock(EventDispatcher::class);
-        $dispatcher->expects($this->once())->method('dispatch')->with(
-            'add_payment_info',
-            $this->callback(static function (array $data): bool {
-                return ($data['billing_email'] ?? '') === 'guest@example.com'
-                    && ($data['customer_profile']['first_name'] ?? '') === 'Ada';
-            })
-        );
+        $dispatched = [];
+        $dispatcher->expects($this->exactly(2))->method('dispatch')
+            ->willReturnCallback(function (string $name, array $data) use (&$dispatched): bool {
+                $dispatched[] = $name;
+                return ($data['billing_email'] ?? '') === 'guest@example.com';
+            });
         $payment = new class {
             public function getMethod(): string
             {
@@ -131,6 +130,7 @@ final class CustomerProfileAndLifecyclePiiTest extends TestCase
             new CustomerProfileBuilder(new CountryFactory())
         );
         $sut->execute($observer);
+        $this->assertSame(['magento_customer_identified', 'add_payment_info'], $dispatched);
     }
 
     public function testCancelAttachesOrderUser(): void

@@ -121,8 +121,8 @@ class EventRegistry
             ],
             'magento_customer_identified' => [
                 'type' => 'identify',
-                'required_keys' => ['customer_id'],
-                'optional_keys' => ['email', 'context'],
+                'required_keys' => [],
+                'optional_keys' => ['customer_id', 'email', 'billing_email', 'context'],
             ],
         ];
     }

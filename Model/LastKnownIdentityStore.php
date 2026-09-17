@@ -8,8 +8,9 @@ use Panto\Source\Api\ConfigInterface;
 use Panto\Source\Helper\ExternalId;
 
 /**
- * Persist checkout/login identity on Magento customer session (guest sessions included)
- * so later storefront events can fill missing user.email / user.profile fill-only.
+ * Persist login identity on Magento customer session so later logged-in
+ * storefront events can fill missing user.email / user.profile fill-only.
+ * Guest last-known is not applied; checkout/purchase events still attach quote/order PII.
  * Not checkout session (cleared after success) and not cookies.
  */
 class LastKnownIdentityStore
@@ -29,6 +30,9 @@ class LastKnownIdentityStore
     public function applyToData(array $data, int $storeId): array
     {
         if (!$this->config->hasTrackingConsent($storeId)) {
+            return $data;
+        }
+        if (!$this->isLoggedIn()) {
             return $data;
         }
         $snapshot = $this->readSnapshot();
@@ -65,6 +69,9 @@ class LastKnownIdentityStore
         if (!$this->config->hasTrackingConsent($storeId)) {
             return;
         }
+        if (!$this->isLoggedIn()) {
+            return;
+        }
         $incoming = $this->snapshotFromData($data);
         if ($incoming === []) {
             return;
@@ -75,6 +82,15 @@ class LastKnownIdentityStore
             return;
         }
         $this->customerSession->setData(self::SESSION_KEY, $json);
+    }
+
+    private function isLoggedIn(): bool
+    {
+        try {
+            return (bool) $this->customerSession->isLoggedIn();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /**

@@ -117,6 +117,7 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         if ($eventName === 'add_payment_info') {
             $this->checkoutSession->setData(PaymentInfoObserver::SESSION_KEY, 1);
             $data = $this->enrichPaymentInfoFromQuote($data);
+            $data = $this->attachQuoteEmail($data);
         }
 
         $storeId = (int) $this->storeManager->getStore()->getId();
@@ -160,6 +161,9 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         }
 
         $this->dispatcher->dispatch($eventName, $data, '', true, $storeId);
+        if ($eventName === 'add_payment_info') {
+            $this->maybeDispatchCheckoutIdentify($data, $storeId);
+        }
         return $result->setData(['ok' => true]);
     }
 
@@ -213,5 +217,62 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
             $data['order_totals'] = $snapshot['order_totals'];
         }
         return $data;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function attachQuoteEmail(array $data): array
+    {
+        if (!$this->emptyString($data['billing_email'] ?? null) || !$this->emptyString($data['email'] ?? null)) {
+            return $data;
+        }
+        try {
+            $quote = $this->checkoutSession->getQuote();
+            $billing = $quote && method_exists($quote, 'getBillingAddress') ? $quote->getBillingAddress() : null;
+            $email = '';
+            if ($billing && method_exists($billing, 'getEmail')) {
+                $email = trim((string) $billing->getEmail());
+            }
+            if ($email === '' && $quote && method_exists($quote, 'getCustomerEmail')) {
+                $email = trim((string) $quote->getCustomerEmail());
+            }
+            if ($email !== '') {
+                $data['billing_email'] = $email;
+            }
+        } catch (\Throwable) {
+        }
+        return $data;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function maybeDispatchCheckoutIdentify(array $data, int $storeId): void
+    {
+        $email = trim((string) ($data['billing_email'] ?? $data['email'] ?? ''));
+        if ($email === '') {
+            return;
+        }
+        if ($this->checkoutSession->getData(PaymentInfoObserver::IDENTIFY_SESSION_KEY)) {
+            return;
+        }
+        $this->checkoutSession->setData(PaymentInfoObserver::IDENTIFY_SESSION_KEY, 1);
+        $identify = [
+            'email' => $email,
+            'billing_email' => $email,
+            'identity_link' => true,
+            'identity_trigger' => 'checkout_email',
+        ];
+        if (!empty($data['customer_profile']) && is_array($data['customer_profile'])) {
+            $identify['customer_profile'] = $data['customer_profile'];
+        }
+        $this->dispatcher->dispatch('magento_customer_identified', $identify, '', true, $storeId);
+    }
+
+    private function emptyString(mixed $value): bool
+    {
+        return !is_string($value) || trim($value) === '';
     }
 }

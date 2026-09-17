@@ -14,7 +14,8 @@ final class EventRegistryParityTest extends TestCase
         $registry = EventRegistry::getRegistry();
         $this->assertArrayHasKey('magento_customer_identified', $registry);
         $this->assertSame('identify', $registry['magento_customer_identified']['type']);
-        $this->assertContains('customer_id', $registry['magento_customer_identified']['required_keys']);
+        $this->assertSame([], $registry['magento_customer_identified']['required_keys']);
+        $this->assertContains('email', $registry['magento_customer_identified']['optional_keys']);
     }
 
     public function testAddToCartOptionalLineKeys(): void

@@ -20,6 +20,7 @@ use Panto\Source\Model\HashedPiiEnricher;
 class PaymentInfoObserver implements ObserverInterface
 {
     public const SESSION_KEY = 'pantosource_payment_info_sent';
+    public const IDENTIFY_SESSION_KEY = 'pantosource_checkout_email_identify_sent';
 
     public function __construct(
         private readonly EventDispatcher $dispatcher,
@@ -79,6 +80,37 @@ class PaymentInfoObserver implements ObserverInterface
         } catch (\Throwable) {
         }
         $this->checkoutSession->setData(self::SESSION_KEY, 1);
+        $this->maybeDispatchCheckoutEmailIdentify($data);
         $this->dispatcher->dispatch('add_payment_info', $data);
+    }
+
+    /**
+     * Emit identify once when quote billing email is present (add_payment_info stays track).
+     *
+     * @param array<string, mixed> $data
+     */
+    public function maybeDispatchCheckoutEmailIdentify(array $data): void
+    {
+        $email = trim((string) ($data['billing_email'] ?? $data['email'] ?? ''));
+        if ($email === '') {
+            return;
+        }
+        if ($this->checkoutSession->getData(self::IDENTIFY_SESSION_KEY)) {
+            return;
+        }
+        $this->checkoutSession->setData(self::IDENTIFY_SESSION_KEY, 1);
+        $identify = [
+            'email' => $email,
+            'billing_email' => $email,
+            'identity_link' => true,
+            'identity_trigger' => 'checkout_email',
+        ];
+        if (!empty($data['customer_id'])) {
+            $identify['customer_id'] = $data['customer_id'];
+        }
+        if (!empty($data['customer_profile']) && is_array($data['customer_profile'])) {
+            $identify['customer_profile'] = $data['customer_profile'];
+        }
+        $this->dispatcher->dispatch('magento_customer_identified', $identify);
     }
 }

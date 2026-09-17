@@ -15,9 +15,26 @@ final class LastKnownIdentityStoreTest extends TestCase
         $this->assertSame('pantosource_last_known_identity', LastKnownIdentityStore::SESSION_KEY);
     }
 
-    public function testGuestPageviewPicksUpPurchaseSnapshot(): void
+    public function testGuestPageviewDoesNotPickUpPurchaseSnapshot(): void
     {
         $session = $this->createMock(CustomerSession::class);
+        $session->method('isLoggedIn')->willReturn(false);
+        $session->method('getData')->with(LastKnownIdentityStore::SESSION_KEY)->willReturn(json_encode([
+            'email' => 'buyer@example.com',
+            'external_id' => '42',
+            'profile' => ['first_name' => 'Ada', 'last_name' => 'Lovelace', 'phone' => '+15551212'],
+        ]));
+        $store = new LastKnownIdentityStore($session, $this->consent(true));
+        $out = $store->applyToData([], 1);
+        $this->assertArrayNotHasKey('email', $out);
+        $this->assertArrayNotHasKey('customer_id', $out);
+        $this->assertArrayNotHasKey('customer_profile', $out);
+    }
+
+    public function testLoggedInPageviewPicksUpPurchaseSnapshot(): void
+    {
+        $session = $this->createMock(CustomerSession::class);
+        $session->method('isLoggedIn')->willReturn(true);
         $session->method('getData')->with(LastKnownIdentityStore::SESSION_KEY)->willReturn(json_encode([
             'email' => 'buyer@example.com',
             'external_id' => '42',
@@ -33,6 +50,7 @@ final class LastKnownIdentityStoreTest extends TestCase
     public function testDoesNotOverwritePresentKeys(): void
     {
         $session = $this->createMock(CustomerSession::class);
+        $session->method('isLoggedIn')->willReturn(true);
         $session->method('getData')->with(LastKnownIdentityStore::SESSION_KEY)->willReturn(json_encode([
             'email' => 'stitched@example.com',
             'profile' => ['first_name' => 'Stitched', 'last_name' => 'Other'],
@@ -60,6 +78,7 @@ final class LastKnownIdentityStoreTest extends TestCase
     public function testPersistWritesUnionOnCustomerSession(): void
     {
         $session = $this->createMock(CustomerSession::class);
+        $session->method('isLoggedIn')->willReturn(true);
         $session->method('getData')->with(LastKnownIdentityStore::SESSION_KEY)->willReturn(json_encode([
             'email' => 'old@example.com',
             'profile' => ['first_name' => 'Old', 'city' => 'London'],
@@ -77,6 +96,18 @@ final class LastKnownIdentityStoreTest extends TestCase
         $store->persistFromData([
             'billing_email' => 'new@example.com',
             'customer_profile' => ['first_name' => 'New'],
+        ], 1);
+    }
+
+    public function testGuestPersistDoesNotWriteSnapshot(): void
+    {
+        $session = $this->createMock(CustomerSession::class);
+        $session->method('isLoggedIn')->willReturn(false);
+        $session->expects($this->never())->method('setData');
+        $store = new LastKnownIdentityStore($session, $this->consent(true));
+        $store->persistFromData([
+            'billing_email' => 'guest@example.com',
+            'customer_profile' => ['first_name' => 'Ada'],
         ], 1);
     }
 

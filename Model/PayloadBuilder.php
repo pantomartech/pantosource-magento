@@ -527,6 +527,15 @@ class PayloadBuilder
         if (!empty($data['browser_fingerprint']) && is_array($data['browser_fingerprint'])) {
             $ext['fingerprint'] = ['signals' => $data['browser_fingerprint']];
         }
+        if (!empty($data['identity_link'])) {
+            $trigger = isset($data['identity_trigger']) && is_string($data['identity_trigger'])
+                ? $data['identity_trigger']
+                : 'checkout_email';
+            $ext['identity'] = [
+                'action' => 'link',
+                'trigger' => $trigger,
+            ];
+        }
         return $ext;
     }
 
