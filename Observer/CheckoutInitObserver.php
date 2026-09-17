@@ -95,7 +95,46 @@ class CheckoutInitObserver implements ObserverInterface
             'order_totals' => QuoteOrderTotals::fromQuote($quote),
             'context' => StorefrontContext::fromRequest($this->request, 'checkout', 'Checkout'),
         ];
+        $email = $this->quoteEmail($quote);
+        if ($email !== '') {
+            $data['billing_email'] = $email;
+        }
         $this->checkoutIdentity->persistToCheckoutSession($data);
         $this->dispatcher->dispatch('checkout_initiated', $data);
+        $this->maybeDispatchCheckoutEmailIdentify($email);
+    }
+
+    private function quoteEmail(mixed $quote): string
+    {
+        try {
+            $billing = method_exists($quote, 'getBillingAddress') ? $quote->getBillingAddress() : null;
+            $email = '';
+            if ($billing && method_exists($billing, 'getEmail')) {
+                $email = trim((string) $billing->getEmail());
+            }
+            if ($email === '' && method_exists($quote, 'getCustomerEmail')) {
+                $email = trim((string) $quote->getCustomerEmail());
+            }
+            return $email;
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    private function maybeDispatchCheckoutEmailIdentify(string $email): void
+    {
+        if ($email === '') {
+            return;
+        }
+        if ($this->checkoutSession->getData(PaymentInfoObserver::IDENTIFY_SESSION_KEY)) {
+            return;
+        }
+        $this->checkoutSession->setData(PaymentInfoObserver::IDENTIFY_SESSION_KEY, 1);
+        $this->dispatcher->dispatch('magento_customer_identified', [
+            'email' => $email,
+            'billing_email' => $email,
+            'identity_link' => true,
+            'identity_trigger' => 'checkout_email',
+        ]);
     }
 }
