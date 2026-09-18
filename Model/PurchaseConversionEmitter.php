@@ -53,7 +53,7 @@ class PurchaseConversionEmitter
         $data = $this->hashedPiiEnricher->enrich($order, $data, (int) $order->getStoreId());
         $data = $this->checkoutIdentity->resolveIdentityFromOrder($data, $orderId);
 
-        $ok = $this->dispatcher->dispatch('magento_purchase_completed', $data, 'conversion');
+        $ok = $this->dispatcher->dispatch('magento_purchase_completed', $data, 'track');
         if ($ok) {
             $this->dedupeRepository->markPurchaseEmitted($orderId);
             $quoteId = (int) $order->getQuoteId();

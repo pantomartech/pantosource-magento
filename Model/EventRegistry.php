@@ -60,7 +60,7 @@ class EventRegistry
                 'optional_keys' => ['order_increment_id', 'status', 'total', 'currency', 'items', 'customer_id', 'is_new_customer', 'coupon_codes', 'context'],
             ],
             'magento_purchase_completed' => [
-                'type' => 'conversion',
+                'type' => 'track',
                 'required_keys' => ['order_id'],
                 'optional_keys' => ['order_increment_id', 'status', 'total', 'currency', 'items', 'occurrence', 'customer_id', 'is_new_customer', 'coupon_codes', 'context'],
             ],
