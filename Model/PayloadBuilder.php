@@ -460,7 +460,16 @@ class PayloadBuilder
         if (!$this->config->hasTrackingConsent($storeId) || !$this->config->isAttributionEnabled($storeId)) {
             return $data;
         }
-        foreach (['fbp' => '_fbp', 'fbc' => '_fbc', 'ttp' => '_ttp'] as $field => $cookieName) {
+        foreach ([
+            'fbp' => '_fbp',
+            'fbc' => '_fbc',
+            'ttp' => '_ttp',
+            'epik' => '_epik',
+            'scid' => '_scid',
+            'twclid' => '_twclid',
+            'oppref' => '__oppref',
+            'uetmsclkid' => '_uetmsclkid',
+        ] as $field => $cookieName) {
             if (!empty($data[$field])) {
                 continue;
             }

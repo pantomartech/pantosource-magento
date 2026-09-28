@@ -27,6 +27,10 @@ class AttributionWindowCapture
         'fbclid',
         'ttclid',
         'msclkid',
+        'twclid',
+        'epik',
+        'sccid',
+        'oppref',
         'gbraid',
         'wbraid',
         'dclid',
@@ -34,6 +38,8 @@ class AttributionWindowCapture
         'fbp',
         'fbc',
         'ttp',
+        'scid',
+        'uetmsclkid',
     ];
 
     public function __construct(

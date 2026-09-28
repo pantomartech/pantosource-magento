@@ -13,10 +13,16 @@ class MatchingSignalFields
         'fbp',
         'fbc',
         'ttp',
+        'epik',
+        'scid',
+        'twclid',
+        'oppref',
+        'uetmsclkid',
         'gclid',
         'fbclid',
         'ttclid',
         'msclkid',
+        'sccid',
         'gbraid',
         'wbraid',
         'dclid',
@@ -24,7 +30,7 @@ class MatchingSignalFields
     ];
 
     /** @var list<string> */
-    public const COOKIE_KEYS = ['fbp', 'fbc', 'ttp'];
+    public const COOKIE_KEYS = ['fbp', 'fbc', 'ttp', 'epik', 'scid', 'twclid', 'oppref', 'uetmsclkid'];
 
     public static function nonempty(mixed $value): string
     {

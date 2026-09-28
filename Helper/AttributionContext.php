@@ -64,6 +64,12 @@ class AttributionContext
                 $out[$key] = $fromReq;
             }
         }
+        if (!isset($out['sccid']) || $out['sccid'] === '') {
+            $scCid = (string) $this->httpRequest->getParam('ScCid', '');
+            if ($scCid !== '') {
+                $out['sccid'] = $scCid;
+            }
+        }
         return $out;
     }
 }

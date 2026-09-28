@@ -48,25 +48,31 @@ define([], function () {
         return sid;
     }
 
+    var VENDOR_BROWSER_COOKIES = [
+        { field: 'fbp', cookie: '_fbp' },
+        { field: 'fbc', cookie: '_fbc' },
+        { field: 'ttp', cookie: '_ttp' },
+        { field: 'epik', cookie: '_epik' },
+        { field: 'scid', cookie: '_scid' },
+        { field: 'twclid', cookie: '_twclid' },
+        { field: 'oppref', cookie: '__oppref' },
+        { field: 'uetmsclkid', cookie: '_uetmsclkid' }
+    ];
+
     function getMetaBrowserCookies() {
-        var fbp = readCookie('_fbp');
-        var fbc = readCookie('_fbc');
-        var ttp = readCookie('_ttp');
         var out = {};
-        if (fbp) {
-            out.fbp = fbp;
-        }
-        if (fbc) {
-            out.fbc = fbc;
-        } else {
+        VENDOR_BROWSER_COOKIES.forEach(function (entry) {
+            var val = readCookie(entry.cookie);
+            if (val) {
+                out[entry.field] = val;
+            }
+        });
+        if (!out.fbc) {
             var qs = new URLSearchParams(window.location.search || '');
             var fbclid = qs.get('fbclid');
             if (fbclid) {
                 out.fbc = 'fb.1.' + Date.now() + '.' + fbclid;
             }
-        }
-        if (ttp) {
-            out.ttp = ttp;
         }
         return out;
     }
@@ -140,6 +146,10 @@ define([], function () {
             'fbclid',
             'ttclid',
             'msclkid',
+            'twclid',
+            'epik',
+            'sccid',
+            'oppref',
             'gbraid',
             'wbraid',
             'dclid',
@@ -152,6 +162,12 @@ define([], function () {
                 out[k] = v;
             }
         });
+        if (!out.sccid) {
+            var scCid = qs.get('ScCid');
+            if (scCid) {
+                out.sccid = scCid;
+            }
+        }
         return out;
     }
 
