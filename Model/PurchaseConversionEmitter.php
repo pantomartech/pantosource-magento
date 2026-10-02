@@ -34,10 +34,12 @@ class PurchaseConversionEmitter
             return false;
         }
 
+        $paymentStatus = PaymentStatusNormalizer::fromOrder($order);
         $data = [
             'order_id' => $orderId,
             'order_increment_id' => (string) $order->getIncrementId(),
             'status' => (string) $order->getStatus(),
+            'payment_status' => $paymentStatus,
             'total' => (string) $order->getGrandTotal(),
             'currency' => (string) $order->getOrderCurrencyCode(),
             'customer_id' => (int) $order->getCustomerId(),
@@ -56,6 +58,8 @@ class PurchaseConversionEmitter
         $ok = $this->dispatcher->dispatch('magento_purchase_completed', $data, 'track');
         if ($ok) {
             $this->dedupeRepository->markPurchaseEmitted($orderId);
+            // The purchase carries its status, so a later change event for the same status is redundant.
+            $this->dedupeRepository->markEmitted($orderId, $paymentStatus);
             $quoteId = (int) $order->getQuoteId();
             if ($quoteId > 0) {
                 $this->checkoutSession->unsData(CheckoutInitSessionKey::forQuote($quoteId));

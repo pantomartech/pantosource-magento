@@ -341,6 +341,9 @@ class PayloadBuilder
         if ($paymentMethod !== '') {
             $commerce['payment_method'] = $paymentMethod;
         }
+        if (isset($data['payment_status']) && is_string($data['payment_status']) && $data['payment_status'] !== '') {
+            $commerce['payment_status'] = $data['payment_status'];
+        }
         if (!empty($data['items']) && is_array($data['items'])) {
             $items = [];
             foreach ($data['items'] as $item) {
@@ -517,7 +520,7 @@ class PayloadBuilder
     {
         $ext = [
             'magento' => [
-                'module_version' => '1.2.3',
+                'module_version' => '1.2.5',
             ],
         ];
         $journeyId = $this->resolveJourneyId();

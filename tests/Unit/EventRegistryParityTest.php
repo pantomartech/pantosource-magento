@@ -33,6 +33,14 @@ final class EventRegistryParityTest extends TestCase
         $this->assertContains('wishlist_id', $opt);
     }
 
+    public function testPaymentStatusEventRegistered(): void
+    {
+        $registry = EventRegistry::getRegistry();
+        $this->assertArrayHasKey('magento_order_payment_status_changed', $registry);
+        $this->assertSame(['order_id', 'payment_status'], $registry['magento_order_payment_status_changed']['required_keys']);
+        $this->assertContains('payment_status', $registry['magento_purchase_completed']['optional_keys']);
+    }
+
     public function testPaymentInfoInAttributionSnapshotList(): void
     {
         $this->assertContains('add_payment_info', ConversionAttributionSnapshot::CONVERSION_EVENTS);

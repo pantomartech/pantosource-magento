@@ -62,7 +62,12 @@ class EventRegistry
             'magento_purchase_completed' => [
                 'type' => 'track',
                 'required_keys' => ['order_id'],
-                'optional_keys' => ['order_increment_id', 'status', 'total', 'currency', 'items', 'occurrence', 'customer_id', 'is_new_customer', 'coupon_codes', 'context'],
+                'optional_keys' => ['order_increment_id', 'status', 'payment_status', 'total', 'currency', 'items', 'occurrence', 'customer_id', 'is_new_customer', 'coupon_codes', 'context'],
+            ],
+            'magento_order_payment_status_changed' => [
+                'type' => 'track',
+                'required_keys' => ['order_id', 'payment_status'],
+                'optional_keys' => ['status', 'previous_payment_status', 'total', 'currency', 'occurrence', 'context'],
             ],
             'magento_order_fulfilled' => [
                 'type' => 'track',

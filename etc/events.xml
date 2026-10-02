@@ -61,6 +61,9 @@
     <event name="sales_order_creditmemo_save_after">
         <observer name="pantosource_refund" instance="Panto\Source\Observer\RefundObserver"/>
     </event>
+    <event name="sales_order_save_after">
+        <observer name="pantosource_order_payment_status" instance="Panto\Source\Observer\OrderPaymentStatusObserver"/>
+    </event>
     <event name="sales_order_status_history_save_after">
         <observer name="pantosource_order_cancel" instance="Panto\Source\Observer\OrderCancelObserver"/>
     </event>

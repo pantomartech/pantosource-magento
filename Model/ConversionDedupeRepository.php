@@ -8,6 +8,7 @@ use Magento\Framework\App\ResourceConnection;
 class ConversionDedupeRepository
 {
     private const TABLE = 'pantosource_order_dedupe';
+    private const PAYMENT_STATUS_TABLE = 'pantosource_order_payment_status';
 
     public function __construct(
         private readonly ResourceConnection $resource
@@ -46,5 +47,25 @@ class ConversionDedupeRepository
         $sql = "INSERT INTO {$t} (order_id, purchase_emitted, fulfilled_emitted, updated_at) VALUES (?, 0, 1, UTC_TIMESTAMP())
                 ON DUPLICATE KEY UPDATE fulfilled_emitted = 1, updated_at = UTC_TIMESTAMP()";
         $conn->query($sql, [$orderId]);
+    }
+
+    /** True when this order already sent (or carried on its purchase) this payment status. */
+    public function hasEmitted(int $orderId, string $paymentStatus): bool
+    {
+        $conn = $this->resource->getConnection();
+        $t = $this->resource->getTableName(self::PAYMENT_STATUS_TABLE);
+        $v = $conn->fetchOne(
+            "SELECT 1 FROM {$t} WHERE order_id = ? AND payment_status = ?",
+            [$orderId, $paymentStatus]
+        );
+        return (int) $v === 1;
+    }
+
+    public function markEmitted(int $orderId, string $paymentStatus): void
+    {
+        $conn = $this->resource->getConnection();
+        $t = $this->resource->getTableName(self::PAYMENT_STATUS_TABLE);
+        $sql = "INSERT IGNORE INTO {$t} (order_id, payment_status, emitted_at) VALUES (?, ?, UTC_TIMESTAMP())";
+        $conn->query($sql, [$orderId, $paymentStatus]);
     }
 }

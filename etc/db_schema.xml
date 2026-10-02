@@ -69,6 +69,19 @@
             <column name="order_id"/>
         </constraint>
     </table>
+    <table name="pantosource_order_payment_status" resource="default" engine="innodb" comment="Payment statuses already sent per order">
+        <column xsi:type="int" name="entity_id" unsigned="true" nullable="false" identity="true"/>
+        <column xsi:type="int" name="order_id" unsigned="true" nullable="false" comment="Sales order entity_id"/>
+        <column xsi:type="varchar" name="payment_status" nullable="false" length="32" comment="Canonical payment status"/>
+        <column xsi:type="timestamp" name="emitted_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="PANTOSOURCE_ORDER_PAYMENT_STATUS_ORDER_STATUS">
+            <column name="order_id"/>
+            <column name="payment_status"/>
+        </constraint>
+    </table>
     <table name="pantosource_order_identity" resource="default" engine="innodb" comment="Checkout identity stitching">
         <column xsi:type="int" name="order_id" unsigned="true" nullable="false" comment="Sales order entity_id"/>
         <column xsi:type="varchar" name="anonymous_id" nullable="true" length="128"/>
