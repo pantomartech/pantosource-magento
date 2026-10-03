@@ -16,6 +16,13 @@
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
             </group>
+            <group id="portal" translate="label" sortOrder="15" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Portal (store health)</label>
+                <field id="base_url" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Portal base URL</label>
+                    <comment>Used for order snapshot export to Panto store health (no trailing slash). Default https://app.pantosource.com</comment>
+                </field>
+            </group>
             <group id="ingestion" translate="label" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
                 <label>Ingestion Service</label>
                 <field id="base_url" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">

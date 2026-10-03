@@ -15,6 +15,7 @@ interface ConfigInterface
     public const XML_PATH_CONSENT_MODE = 'pantosource/tracking/consent_mode';
     public const XML_PATH_ATTRIBUTION_LOOKBACK_DAYS = 'pantosource/tracking/attribution_lookback_days';
     public const XML_PATH_SPA_PAGEVIEWS = 'pantosource/tracking/spa_pageviews';
+    public const XML_PATH_PORTAL_BASE_URL = 'pantosource/portal/base_url';
 
     public function isEnabled(?int $storeId = null): bool;
 
@@ -40,4 +41,6 @@ interface ConfigInterface
     public function getAttributionLookbackDays(?int $storeId = null): int;
 
     public function isSpaPageviewsEnabled(?int $storeId = null): bool;
+
+    public function getPortalBaseUrl(?int $storeId = null): string;
 }

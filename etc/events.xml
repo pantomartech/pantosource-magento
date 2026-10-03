@@ -67,6 +67,9 @@
     <event name="sales_order_status_history_save_after">
         <observer name="pantosource_order_cancel" instance="Panto\Source\Observer\OrderCancelObserver"/>
     </event>
+    <event name="sales_order_delete_after">
+        <observer name="pantosource_order_delete_tombstone" instance="Panto\Source\Observer\OrderDeleteObserver"/>
+    </event>
     <event name="wishlist_add_product">
         <observer name="pantosource_wishlist_add" instance="Panto\Source\Observer\WishlistAddObserver"/>
     </event>

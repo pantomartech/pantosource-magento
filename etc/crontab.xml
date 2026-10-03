@@ -5,5 +5,8 @@
         <job name="pantosource_process_queue" instance="Panto\Source\Cron\ProcessQueue" method="execute">
             <schedule>*/1 * * * *</schedule>
         </job>
+        <job name="pantosource_export_order_snapshots" instance="Panto\Source\Cron\ExportOrderSnapshots" method="execute">
+            <schedule>15 * * * *</schedule>
+        </job>
     </group>
 </config>

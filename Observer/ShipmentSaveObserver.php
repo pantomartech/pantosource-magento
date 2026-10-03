@@ -32,6 +32,9 @@ class ShipmentSaveObserver implements ObserverInterface
             return;
         }
         $orderId = (int) $shipment->getOrderId();
+        if (!$this->checkoutIdentity->isOnlineStoreOrder($orderId)) {
+            return;
+        }
         if (!$this->dedupeRepository->isPurchaseEmitted($orderId)) {
             return;
         }
@@ -53,6 +56,7 @@ class ShipmentSaveObserver implements ObserverInterface
             'items' => $this->orderLineSerializer->getItems($order),
             'order_totals' => $this->orderLineSerializer->orderTotals($order),
             'context' => StorefrontContext::fromRequest($this->request, 'admin', 'Shipment'),
+            'sales_channel' => $this->checkoutIdentity->getSalesChannel($orderId) ?? '',
         ];
         $data = $this->checkoutIdentity->resolveIdentityFromOrder($data, $orderId);
 

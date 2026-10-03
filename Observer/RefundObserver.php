@@ -7,6 +7,7 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Panto\Source\Helper\StorefrontContext;
+use Panto\Source\Model\CheckoutIdentityRepository;
 use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
 use Panto\Source\Model\HashedPiiEnricher;
@@ -21,7 +22,8 @@ class RefundObserver implements ObserverInterface
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
         private readonly CustomerProfileBuilder $customerProfileBuilder,
-        private readonly HashedPiiEnricher $hashedPiiEnricher
+        private readonly HashedPiiEnricher $hashedPiiEnricher,
+        private readonly CheckoutIdentityRepository $checkoutIdentity
     ) {
     }
 
@@ -34,6 +36,9 @@ class RefundObserver implements ObserverInterface
 
         $order = $creditmemo->getOrder();
         $orderId = $order ? (int) $order->getId() : 0;
+        if ($orderId <= 0 || !$this->checkoutIdentity->isOnlineStoreOrder($orderId)) {
+            return;
+        }
         $currency = $order ? (string) $order->getOrderCurrencyCode() : '';
 
         $items = [];
@@ -58,6 +63,7 @@ class RefundObserver implements ObserverInterface
             'currency'      => $currency,
             'items'         => $items,
             'context'       => StorefrontContext::fromRequest($this->request, '', ''),
+            'sales_channel' => $this->checkoutIdentity->getSalesChannel($orderId) ?? '',
         ];
         if ($order) {
             $data['customer_id'] = (int) $order->getCustomerId();

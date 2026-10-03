@@ -86,10 +86,22 @@
         <column xsi:type="int" name="order_id" unsigned="true" nullable="false" comment="Sales order entity_id"/>
         <column xsi:type="varchar" name="anonymous_id" nullable="true" length="128"/>
         <column xsi:type="varchar" name="session_id" nullable="true" length="128"/>
+        <column xsi:type="varchar" name="sales_channel" nullable="true" length="32" comment="Placement area when online store (frontend, graphql, webapi_rest)"/>
         <column xsi:type="text" name="attribution_snapshot_json" nullable="true"/>
         <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"/>
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="order_id"/>
         </constraint>
+    </table>
+    <table name="pantosource_snapshot_tombstone" resource="default" engine="innodb" comment="Order delete tombstones for snapshot export">
+        <column xsi:type="int" name="order_id" unsigned="true" nullable="false" comment="Sales order entity_id"/>
+        <column xsi:type="smallint" name="store_id" unsigned="true" nullable="false" default="0" comment="Store view id"/>
+        <column xsi:type="timestamp" name="tombstone_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="order_id"/>
+        </constraint>
+        <index referenceId="PANTOSOURCE_SNAPSHOT_TOMBSTONE_STORE" indexType="btree">
+            <column name="store_id"/>
+        </index>
     </table>
 </schema>

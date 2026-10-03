@@ -9,6 +9,9 @@
             <ingestion>
                 <base_url/>
             </ingestion>
+            <portal>
+                <base_url>https://app.pantosource.com</base_url>
+            </portal>
             <tracking>
                 <frontend_tracker>1</frontend_tracker>
                 <attribution>1</attribution>

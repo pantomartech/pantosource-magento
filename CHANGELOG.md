@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.2.6
+
+- [feat] Store health: online-store channel marking on `pantosource_order_identity.sales_channel` (frontend, graphql, webapi_rest with cart token). Purchase, cancel, refund, fulfill and order-placed events are gated to online store only; `commerce.sales_channel` on order payloads.
+- [feat] Hourly cron `pantosource_export_order_snapshots` uploads order snapshots to the portal (`pantosource/portal/base_url`, default `https://app.pantosource.com`) with Bearer API key and `X-Panto-Integration: magento`. Tombstones on `sales_order_delete_after`. Tables: `sales_channel` column, `pantosource_snapshot_tombstone` (run `setup:upgrade`).
+- [change] Requires Magento cron (`bin/magento cron:run`) for snapshot export and queue processing.
+
 ## 1.2.5
 
 - [feat] `magento_purchase_completed` carries `commerce.payment_status` (pending, paid, cancelled, refunded, partially_refunded) from `PaymentStatusNormalizer`.

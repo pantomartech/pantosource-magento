@@ -8,6 +8,7 @@ use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Sales\Api\Data\OrderInterface;
 use Panto\Source\Helper\CheckoutInitSessionKey;
 use Panto\Source\Helper\StorefrontContext;
+use Psr\Log\LoggerInterface;
 
 /**
  * Shared magento_purchase_completed conversion emit with purchase-first dedupe.
@@ -23,7 +24,8 @@ class PurchaseConversionEmitter
         private readonly CustomerProfileBuilder $customerProfileBuilder,
         private readonly CheckoutIdentityRepository $checkoutIdentity,
         private readonly OrderEnrichment $orderEnrichment,
-        private readonly CheckoutSession $checkoutSession
+        private readonly CheckoutSession $checkoutSession,
+        private readonly LoggerInterface $logger
     ) {
     }
 
@@ -33,6 +35,14 @@ class PurchaseConversionEmitter
         if ($orderId <= 0 || $this->dedupeRepository->isPurchaseEmitted($orderId)) {
             return false;
         }
+        if (!$this->checkoutIdentity->isOnlineStoreOrder($orderId)) {
+            $this->logger->debug('PantoSource skip purchase: not online store', [
+                'order_id' => $orderId,
+            ]);
+            return false;
+        }
+
+        $salesChannel = $this->checkoutIdentity->getSalesChannel($orderId) ?? '';
 
         $paymentStatus = PaymentStatusNormalizer::fromOrder($order);
         $data = [
@@ -51,6 +61,7 @@ class PurchaseConversionEmitter
             'coupon_codes' => $this->orderEnrichment->getCouponCodes($order),
             'context' => StorefrontContext::fromRequest($this->request, 'checkout', $pageTitle),
             'customer_profile' => $this->customerProfileBuilder->profileFromOrder($order),
+            'sales_channel' => $salesChannel,
         ];
         $data = $this->hashedPiiEnricher->enrich($order, $data, (int) $order->getStoreId());
         $data = $this->checkoutIdentity->resolveIdentityFromOrder($data, $orderId);

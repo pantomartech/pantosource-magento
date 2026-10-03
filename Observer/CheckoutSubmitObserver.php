@@ -14,6 +14,7 @@ use Panto\Source\Model\EventDispatcher;
 use Panto\Source\Model\HashedPiiEnricher;
 use Panto\Source\Model\OrderEnrichment;
 use Panto\Source\Model\OrderLineSerializer;
+use Panto\Source\Model\OrderPlacementContext;
 
 class CheckoutSubmitObserver implements ObserverInterface
 {
@@ -24,7 +25,8 @@ class CheckoutSubmitObserver implements ObserverInterface
         private readonly HashedPiiEnricher $hashedPiiEnricher,
         private readonly CustomerProfileBuilder $customerProfileBuilder,
         private readonly CheckoutIdentityRepository $checkoutIdentity,
-        private readonly OrderEnrichment $orderEnrichment
+        private readonly OrderEnrichment $orderEnrichment,
+        private readonly OrderPlacementContext $placementContext
     ) {
     }
 
@@ -38,6 +40,13 @@ class CheckoutSubmitObserver implements ObserverInterface
 
         $orderId = (int) $order->getEntityId();
         $this->checkoutIdentity->copySessionToOrder($orderId);
+        $salesChannel = $this->placementContext->resolveSalesChannelForPlacement();
+        if ($salesChannel !== null) {
+            $this->checkoutIdentity->recordSalesChannel($orderId, $salesChannel);
+        }
+        if (!$this->checkoutIdentity->isOnlineStoreOrder($orderId)) {
+            return;
+        }
 
         $data = [
             'order_id' => $orderId,
@@ -54,6 +63,7 @@ class CheckoutSubmitObserver implements ObserverInterface
             'coupon_codes' => $this->orderEnrichment->getCouponCodes($order),
             'context' => StorefrontContext::fromRequest($this->request, 'checkout', 'Order placed'),
             'customer_profile' => $this->customerProfileBuilder->profileFromOrder($order),
+            'sales_channel' => $salesChannel ?? $this->checkoutIdentity->getSalesChannel($orderId) ?? '',
         ];
         $data = $this->hashedPiiEnricher->enrich($order, $data, (int) $order->getStoreId());
         $data = $this->checkoutIdentity->resolveIdentityFromOrder($data, $orderId);

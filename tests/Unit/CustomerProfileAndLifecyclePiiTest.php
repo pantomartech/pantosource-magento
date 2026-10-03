@@ -9,6 +9,7 @@ use Magento\Framework\Event\Observer;
 use Magento\Sales\Api\Data\OrderInterface;
 use PHPUnit\Framework\TestCase;
 use Panto\Source\Api\ConfigInterface;
+use Panto\Source\Model\CheckoutIdentityRepository;
 use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
 use Panto\Source\Model\HashedPiiEnricher;
@@ -190,7 +191,8 @@ final class CustomerProfileAndLifecyclePiiTest extends TestCase
             $request,
             $lines,
             new CustomerProfileBuilder(new CountryFactory()),
-            new HashedPiiEnricher($config)
+            new HashedPiiEnricher($config),
+            $this->onlineCheckoutIdentity()
         );
         $sut->execute($observer);
     }
@@ -260,9 +262,19 @@ final class CustomerProfileAndLifecyclePiiTest extends TestCase
             $dispatcher,
             $request,
             new CustomerProfileBuilder(new CountryFactory()),
-            new HashedPiiEnricher($config)
+            new HashedPiiEnricher($config),
+            $this->onlineCheckoutIdentity()
         );
         $sut->execute($observer);
+    }
+
+    private function onlineCheckoutIdentity(): CheckoutIdentityRepository
+    {
+        $repo = $this->createMock(CheckoutIdentityRepository::class);
+        $repo->method('isOnlineStoreOrder')->willReturn(true);
+        $repo->method('getSalesChannel')->willReturn('frontend');
+
+        return $repo;
     }
 
     /**

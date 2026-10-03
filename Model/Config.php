@@ -131,4 +131,15 @@ class Config implements ConfigInterface
             $storeId
         );
     }
+
+    public function getPortalBaseUrl(?int $storeId = null): string
+    {
+        $v = (string) $this->scopeConfig->getValue(
+            self::XML_PATH_PORTAL_BASE_URL,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+
+        return rtrim($v, '/');
+    }
 }

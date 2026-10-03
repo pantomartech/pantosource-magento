@@ -10,6 +10,7 @@ use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Api\ConfigInterface;
 use Panto\Source\Helper\CheckoutIdentitySnapshot;
 use Panto\Source\Helper\MatchingSignalFields;
+use Panto\Source\Helper\OrderPlacementChannel;
 
 /**
  * Checkout identity stitching (Woo checkout_token / order meta parity).
@@ -119,6 +120,39 @@ class CheckoutIdentityRepository
         if ($attrJson !== false && $attrJson !== '{}' && $attrJson !== '{"first_touch":[],"last_touch":[]}') {
             $this->checkoutSession->setData(self::SESSION_ATTR, $attrJson);
         }
+    }
+
+    public function recordSalesChannel(int $orderId, string $salesChannel): void
+    {
+        if ($orderId <= 0 || $salesChannel === '') {
+            return;
+        }
+        $conn = $this->resource->getConnection();
+        $table = $this->resource->getTableName(self::TABLE);
+        $conn->insertOnDuplicate($table, [
+            'order_id' => $orderId,
+            'sales_channel' => $salesChannel,
+            'created_at' => date('Y-m-d H:i:s'),
+        ], ['sales_channel']);
+    }
+
+    public function isOnlineStoreOrder(int $orderId): bool
+    {
+        $channel = $this->getSalesChannel($orderId);
+        return $channel !== null && OrderPlacementChannel::isOnlineStoreChannel($channel);
+    }
+
+    public function getSalesChannel(int $orderId): ?string
+    {
+        if ($orderId <= 0) {
+            return null;
+        }
+        $row = $this->loadByOrderId($orderId);
+        if ($row === null || empty($row['sales_channel'])) {
+            return null;
+        }
+
+        return (string) $row['sales_channel'];
     }
 
     public function copySessionToOrder(int $orderId): void

@@ -9,6 +9,7 @@ use Magento\Framework\App\Request\Http as HttpRequest;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
+use Panto\Source\Model\CheckoutIdentityRepository;
 use Panto\Source\Model\HashedPiiEnricher;
 use Panto\Source\Model\OrderLineSerializer;
 
@@ -23,7 +24,8 @@ class OrderCancelObserver implements ObserverInterface
         private readonly HttpRequest $request,
         private readonly OrderLineSerializer $orderLineSerializer,
         private readonly CustomerProfileBuilder $customerProfileBuilder,
-        private readonly HashedPiiEnricher $hashedPiiEnricher
+        private readonly HashedPiiEnricher $hashedPiiEnricher,
+        private readonly CheckoutIdentityRepository $checkoutIdentity
     ) {
     }
 
@@ -44,6 +46,11 @@ class OrderCancelObserver implements ObserverInterface
             return;
         }
 
+        $orderId = (int) $order->getId();
+        if (!$this->checkoutIdentity->isOnlineStoreOrder($orderId)) {
+            return;
+        }
+
         // Avoid duplicate events: use a flag on the order.
         $flagKey = 'pantosource_cancel_emitted';
         if ($order->getData($flagKey)) {
@@ -61,6 +68,7 @@ class OrderCancelObserver implements ObserverInterface
             'billing_email' => (string) $order->getCustomerEmail(),
             'customer_profile' => $this->customerProfileBuilder->profileFromOrder($order),
             'context'  => StorefrontContext::fromRequest($this->request, '', ''),
+            'sales_channel' => $this->checkoutIdentity->getSalesChannel($orderId) ?? '',
         ];
         $data = $this->hashedPiiEnricher->enrich($order, $data, (int) $order->getStoreId());
         $this->dispatcher->dispatch('magento_order_cancelled', $data);

@@ -344,6 +344,9 @@ class PayloadBuilder
         if (isset($data['payment_status']) && is_string($data['payment_status']) && $data['payment_status'] !== '') {
             $commerce['payment_status'] = $data['payment_status'];
         }
+        if (isset($data['sales_channel']) && is_string($data['sales_channel']) && $data['sales_channel'] !== '') {
+            $commerce['sales_channel'] = $data['sales_channel'];
+        }
         if (!empty($data['items']) && is_array($data['items'])) {
             $items = [];
             foreach ($data['items'] as $item) {
@@ -520,7 +523,7 @@ class PayloadBuilder
     {
         $ext = [
             'magento' => [
-                'module_version' => '1.2.5',
+                'module_version' => '1.2.6',
             ],
         ];
         $journeyId = $this->resolveJourneyId();
