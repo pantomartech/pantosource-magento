@@ -5,6 +5,7 @@ namespace Panto\Source\Model;
 
 use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\App\Request\Http as HttpRequest;
+use Magento\Framework\UrlInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use Panto\Source\Helper\CheckoutInitSessionKey;
 use Panto\Source\Helper\StorefrontContext;
@@ -25,7 +26,8 @@ class PurchaseConversionEmitter
         private readonly CheckoutIdentityRepository $checkoutIdentity,
         private readonly OrderEnrichment $orderEnrichment,
         private readonly CheckoutSession $checkoutSession,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly UrlInterface $urlBuilder
     ) {
     }
 
@@ -59,7 +61,10 @@ class PurchaseConversionEmitter
             'occurrence' => $occurrence,
             'is_new_customer' => $this->orderEnrichment->isNewCustomer($order),
             'coupon_codes' => $this->orderEnrichment->getCouponCodes($order),
-            'context' => StorefrontContext::fromRequest($this->request, 'checkout', $pageTitle),
+            'context' => StorefrontContext::withCheckoutSuccessPage(
+                StorefrontContext::fromRequest($this->request, 'checkout', $pageTitle),
+                (string) $this->urlBuilder->getUrl('checkout/onepage/success', ['_secure' => true])
+            ),
             'customer_profile' => $this->customerProfileBuilder->profileFromOrder($order),
             'sales_channel' => $salesChannel,
         ];
