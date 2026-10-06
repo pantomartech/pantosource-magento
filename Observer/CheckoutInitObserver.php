@@ -8,6 +8,7 @@ use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
+use Panto\Source\Helper\CheckoutEmailIdentify;
 use Panto\Source\Helper\CheckoutInitSessionKey;
 use Panto\Source\Helper\QuoteLineIds;
 use Panto\Source\Helper\QuoteOrderTotals;
@@ -101,7 +102,9 @@ class CheckoutInitObserver implements ObserverInterface
         }
         $this->checkoutIdentity->persistToCheckoutSession($data);
         $this->dispatcher->dispatch('checkout_initiated', $data);
-        $this->maybeDispatchCheckoutEmailIdentify($email);
+        if (!CheckoutEmailIdentify::quoteHasLoggedInCustomer($quote)) {
+            $this->maybeDispatchCheckoutEmailIdentify($email);
+        }
     }
 
     private function quoteEmail(mixed $quote): string

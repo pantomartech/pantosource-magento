@@ -8,6 +8,7 @@ use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
+use Panto\Source\Helper\CheckoutEmailIdentify;
 use Panto\Source\Helper\FrontendArea;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\CustomerProfileBuilder;
@@ -29,6 +30,9 @@ class CustomerUpdateObserver implements ObserverInterface
     public function execute(Observer $observer): void
     {
         if (!$this->frontendArea->isFrontend()) {
+            return;
+        }
+        if (CheckoutEmailIdentify::shouldSkipCustomerUpdated($this->request)) {
             return;
         }
         $customer = $observer->getEvent()->getCustomer();

@@ -161,7 +161,7 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
         }
 
         $this->dispatcher->dispatch($eventName, $data, '', true, $storeId);
-        if ($eventName === 'add_payment_info') {
+        if ($eventName === 'add_payment_info' && !$this->customerSession->isLoggedIn()) {
             $this->maybeDispatchCheckoutIdentify($data, $storeId);
         }
         return $result->setData(['ok' => true]);

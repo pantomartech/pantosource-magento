@@ -9,6 +9,7 @@ use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Panto\Source\Helper\QuoteCommerceSnapshot;
 use Panto\Source\Helper\StorefrontContext;
+use Panto\Source\Helper\CheckoutEmailIdentify;
 use Panto\Source\Model\CustomerProfileBuilder;
 use Panto\Source\Model\EventDispatcher;
 use Panto\Source\Model\HashedPiiEnricher;
@@ -80,7 +81,15 @@ class PaymentInfoObserver implements ObserverInterface
         } catch (\Throwable) {
         }
         $this->checkoutSession->setData(self::SESSION_KEY, 1);
-        $this->maybeDispatchCheckoutEmailIdentify($data);
+        $quote = null;
+        try {
+            $quote = $this->checkoutSession->getQuote();
+        } catch (\Throwable) {
+            $quote = null;
+        }
+        if (!CheckoutEmailIdentify::quoteHasLoggedInCustomer($quote)) {
+            $this->maybeDispatchCheckoutEmailIdentify($data);
+        }
         $this->dispatcher->dispatch('add_payment_info', $data);
     }
 

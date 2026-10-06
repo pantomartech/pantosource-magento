@@ -30,6 +30,16 @@ class Http
         return '';
     }
 
+    public function isXmlHttpRequest(): bool
+    {
+        return false;
+    }
+
+    public function isAjax(): bool
+    {
+        return false;
+    }
+
     /**
      * @param string $key
      * @param mixed $default

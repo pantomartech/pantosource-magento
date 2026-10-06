@@ -91,6 +91,11 @@ final class CustomerProfileAndLifecyclePiiTest extends TestCase
             {
                 return '';
             }
+
+            public function getCustomerId(): int
+            {
+                return 0;
+            }
         };
         $session = $this->createMock(CheckoutSession::class);
         $session->method('getData')->willReturn(null);
@@ -132,6 +137,81 @@ final class CustomerProfileAndLifecyclePiiTest extends TestCase
         );
         $sut->execute($observer);
         $this->assertSame(['magento_customer_identified', 'add_payment_info'], $dispatched);
+    }
+
+    public function testPaymentInfoSkipsCheckoutIdentifyWhenLoggedIn(): void
+    {
+        $billing = $this->address([
+            'email' => 'member@example.com',
+            'firstname' => 'Ada',
+            'city' => 'Boston',
+            'countryId' => 'US',
+        ]);
+        $quote = new class ($billing) {
+            public function __construct(private mixed $billing)
+            {
+            }
+
+            public function getBillingAddress(): mixed
+            {
+                return $this->billing;
+            }
+
+            public function getShippingAddress(): mixed
+            {
+                return null;
+            }
+
+            public function getCustomerEmail(): string
+            {
+                return 'member@example.com';
+            }
+
+            public function getCustomerId(): int
+            {
+                return 7;
+            }
+        };
+        $session = $this->createMock(CheckoutSession::class);
+        $session->method('getData')->willReturn(null);
+        $session->method('getQuote')->willReturn($quote);
+        $session->expects($this->once())->method('setData');
+        $dispatcher = $this->createMock(EventDispatcher::class);
+        $dispatched = [];
+        $dispatcher->expects($this->once())->method('dispatch')
+            ->willReturnCallback(function (string $name) use (&$dispatched): bool {
+                $dispatched[] = $name;
+                return true;
+            });
+        $payment = new class {
+            public function getMethod(): string
+            {
+                return 'checkmo';
+            }
+        };
+        $event = new class ($payment) {
+            public function __construct(private mixed $payment)
+            {
+            }
+
+            public function getPayment(): mixed
+            {
+                return $this->payment;
+            }
+        };
+        $observer = $this->createMock(Observer::class);
+        $observer->method('getEvent')->willReturn($event);
+        $request = $this->createMock(HttpRequest::class);
+        $request->method('getRequestUri')->willReturn('/checkout/');
+        $request->method('getServer')->willReturn('');
+        $sut = new PaymentInfoObserver(
+            $dispatcher,
+            $request,
+            $session,
+            new CustomerProfileBuilder(new CountryFactory())
+        );
+        $sut->execute($observer);
+        $this->assertSame(['add_payment_info'], $dispatched);
     }
 
     public function testCancelAttachesOrderUser(): void
