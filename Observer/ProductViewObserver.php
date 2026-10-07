@@ -7,6 +7,7 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Store\Model\StoreManagerInterface;
+use Panto\Source\Helper\ProductViewedClaim;
 use Panto\Source\Helper\StorefrontContext;
 use Panto\Source\Model\CurrentCatalogContext;
 use Panto\Source\Model\EventDispatcher;
@@ -17,7 +18,8 @@ class ProductViewObserver implements ObserverInterface
         private readonly EventDispatcher $dispatcher,
         private readonly HttpRequest $request,
         private readonly CurrentCatalogContext $catalogContext,
-        private readonly StoreManagerInterface $storeManager
+        private readonly StoreManagerInterface $storeManager,
+        private readonly ProductViewedClaim $productViewedClaim
     ) {
     }
 
@@ -33,14 +35,17 @@ class ProductViewObserver implements ObserverInterface
         } catch (\Throwable) {
             $currency = '';
         }
+        $productId = (int) $product->getId();
         $data = [
-            'product_id' => (int) $product->getId(),
+            'product_id' => $productId,
             'product_name' => (string) $product->getName(),
             'sku' => (string) $product->getSku(),
             'price' => (string) $product->getFinalPrice(),
             'currency' => $currency,
             'context' => StorefrontContext::fromRequest($this->request, 'product', (string) $product->getName()),
         ];
-        $this->dispatcher->dispatch('product_viewed', $data);
+        if ($this->dispatcher->dispatch('product_viewed', $data)) {
+            $this->productViewedClaim->claim($productId);
+        }
     }
 }

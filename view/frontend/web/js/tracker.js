@@ -294,6 +294,83 @@ define([], function () {
             });
     }
 
+    var PRODUCT_VIEWED_OCCURRED_PREFIX = 'panto_pv_occurred_at:';
+    var PRODUCT_VIEWED_DEDUPE_PREFIX = 'panto_pv_dedupe:';
+
+    function currentPagePath() {
+        var pagePath = (window.location.pathname || '') + (window.location.search || '');
+        if (pagePath.charAt(0) !== '/') {
+            pagePath = '/' + pagePath;
+        }
+        if (pagePath.length > 2048) {
+            pagePath = pagePath.slice(0, 2048);
+        }
+        return pagePath;
+    }
+
+    function rememberProductViewedOccurredAt(key) {
+        if (!key) {
+            return;
+        }
+        try {
+            var storageKey = PRODUCT_VIEWED_OCCURRED_PREFIX + String(key);
+            if (!sessionStorage.getItem(storageKey)) {
+                sessionStorage.setItem(storageKey, String(Date.now()));
+            }
+        } catch (e) {
+            /* sessionStorage disabled */
+        }
+    }
+
+    function takeProductViewedOccurredAtIso(key) {
+        if (!key) {
+            return '';
+        }
+        try {
+            var storageKey = PRODUCT_VIEWED_OCCURRED_PREFIX + String(key);
+            var raw = sessionStorage.getItem(storageKey);
+            sessionStorage.removeItem(storageKey);
+            var ms = raw ? parseInt(raw, 10) : NaN;
+            if (!ms || isNaN(ms)) {
+                return '';
+            }
+            return new Date(ms).toISOString();
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function hasProductViewedDedupe(productId) {
+        try {
+            return !!sessionStorage.getItem(PRODUCT_VIEWED_DEDUPE_PREFIX + String(productId));
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function markProductViewedDedupe(productId) {
+        try {
+            sessionStorage.setItem(PRODUCT_VIEWED_DEDUPE_PREFIX + String(productId), '1');
+        } catch (e) {
+            /* sessionStorage disabled */
+        }
+    }
+
+    function fetchTrackerConfig(configUrl, pagePath) {
+        var sep = configUrl.indexOf('?') >= 0 ? '&' : '?';
+        var url = configUrl + sep + 'page_path=' + encodeURIComponent(pagePath);
+        return fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' }
+        }).then(function (response) {
+            if (response.status === 204 || !response.ok) {
+                return null;
+            }
+            return response.json();
+        });
+    }
+
     function trackPageview(cfg, fired, pathKey) {
         var key = pathKey || window.location.pathname + window.location.search;
         once(fired, 'pageview:' + key, function () {
@@ -301,16 +378,76 @@ define([], function () {
         });
     }
 
+    function maybeEmitSpaProductViewed(cfg, fired) {
+        if (!cfg || !cfg.flags || !cfg.flags.isProduct || !cfg.product || !cfg.product.id) {
+            return;
+        }
+        if (cfg.flags.serverProductViewed === true) {
+            return;
+        }
+        var productId = parseInt(cfg.product.id, 10) || 0;
+        if (productId <= 0) {
+            return;
+        }
+        if (hasProductViewedDedupe(productId)) {
+            return;
+        }
+        once(fired, 'product_viewed:' + String(productId), function () {
+            markProductViewedDedupe(productId);
+            var eventData = {
+                page_type: 'product',
+                currency: cfg.currency || '',
+                product_id: productId,
+                product_name: cfg.product.name || '',
+                price: cfg.product.price || '',
+                sku: cfg.product.sku || ''
+            };
+            var occurredAt = takeProductViewedOccurredAtIso(productId);
+            if (!occurredAt) {
+                occurredAt = takeProductViewedOccurredAtIso(currentPagePath());
+            }
+            if (occurredAt) {
+                eventData.occurred_at = occurredAt;
+            }
+            postEvent(cfg, 'product_viewed', eventData);
+        });
+    }
+
     function setupSpaPageviews(cfg, fired) {
         if (!cfg.flags || !cfg.flags.enableSpaPageviews) {
             return;
         }
-        var lastPath = window.location.pathname + window.location.search;
+        var lastPath = currentPagePath();
+        var activeCfg = cfg;
+        function applySpaPath(pathKey) {
+            rememberProductViewedOccurredAt(pathKey);
+            if (!activeCfg.configUrl) {
+                trackPageview(activeCfg, fired, pathKey);
+                return;
+            }
+            fetchTrackerConfig(activeCfg.configUrl, pathKey)
+                .then(function (nextCfg) {
+                    if (!nextCfg) {
+                        trackPageview(activeCfg, fired, pathKey);
+                        return;
+                    }
+                    nextCfg.configUrl = activeCfg.configUrl;
+                    activeCfg = nextCfg;
+                    if (nextCfg.product && nextCfg.product.id) {
+                        rememberProductViewedOccurredAt(nextCfg.product.id);
+                    }
+                    trackPageview(nextCfg, fired, pathKey);
+                    maybeEmitSpaProductViewed(nextCfg, fired);
+                })
+                .catch(function () {
+                    trackPageview(activeCfg, fired, pathKey);
+                });
+        }
         function checkPath() {
-            var current = window.location.pathname + window.location.search;
+            var current = currentPagePath();
             if (current !== lastPath) {
                 lastPath = current;
-                trackPageview(cfg, fired, current);
+                applySpaPath(current);
             }
         }
         var origPush = history.pushState;
@@ -368,9 +505,9 @@ define([], function () {
             trackPageview(cfg, fired);
             setupSpaPageviews(cfg, fired);
 
-            // product_viewed / product_list_viewed / search_performed are server-canonical
-            // (ProductViewObserver / CategoryViewObserver / SearchObserver). Config is loaded
-            // on a separate GET, so JS must not emit those — it only stamps pageview type.
+            // Document PDP: product_viewed is server-canonical (ProductViewObserver).
+            // SPA history to a PDP: JS re-fetches config and may emit product_viewed when
+            // serverProductViewed is false (no observer claim). List/search stay server-only.
 
             // checkout_initiated is emitted server-side by CheckoutInitObserver
             // (controller_action_predispatch_checkout_index_index), which provides a richer
@@ -390,30 +527,13 @@ define([], function () {
     }
 
     function loadConfigFromUrl(configUrl) {
-        var pagePath = (window.location.pathname || '') + (window.location.search || '');
-        if (pagePath.charAt(0) !== '/') {
-            pagePath = '/' + pagePath;
-        }
-        if (pagePath.length > 2048) {
-            pagePath = pagePath.slice(0, 2048);
-        }
-        var sep = configUrl.indexOf('?') >= 0 ? '&' : '?';
-        var url = configUrl + sep + 'page_path=' + encodeURIComponent(pagePath);
-        fetch(url, {
-            method: 'GET',
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json' }
-        })
-            .then(function (response) {
-                if (response.status === 204 || !response.ok) {
-                    return null;
-                }
-                return response.json();
-            })
+        var pagePath = currentPagePath();
+        fetchTrackerConfig(configUrl, pagePath)
             .then(function (cfg) {
                 if (!cfg) {
                     return;
                 }
+                cfg.configUrl = configUrl;
                 startTracker(cfg);
             })
             .catch(function () {});

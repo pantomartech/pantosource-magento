@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Panto\Source\Model;
 
+use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\Layer\Resolver as LayerResolver;
 use Magento\Customer\Model\Session as CustomerSession;
 use Magento\Framework\App\Request\Http as HttpRequest;
@@ -10,6 +11,7 @@ use Magento\Framework\Data\Form\FormKey;
 use Magento\Framework\UrlInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Api\ConfigInterface;
+use Panto\Source\Helper\ProductViewedClaim;
 use Panto\Source\Helper\StorefrontPageClassifier;
 
 /**
@@ -26,7 +28,9 @@ class FrontendTrackerConfig
         private readonly LayerResolver $layerResolver,
         private readonly CustomerSession $customerSession,
         private readonly UrlInterface $urlBuilder,
-        private readonly StorefrontPageClassifier $pageClassifier
+        private readonly StorefrontPageClassifier $pageClassifier,
+        private readonly ProductRepositoryInterface $productRepository,
+        private readonly ProductViewedClaim $productViewedClaim
     ) {
     }
 
@@ -54,15 +58,29 @@ class FrontendTrackerConfig
         $pageTypeHint = $classified['pageType'];
 
         $productData = null;
+        $productIdForClaim = 0;
         if ($isProduct) {
             $product = $this->catalogContext->getCurrentProduct();
-            if ($product !== null) {
+            if ($product === null && (int) $classified['productId'] > 0) {
+                try {
+                    $product = $this->productRepository->getById((int) $classified['productId'], false, $resolvedStoreId);
+                } catch (\Throwable) {
+                    $product = null;
+                }
+            }
+            if ($product !== null && $product->getId()) {
+                $productIdForClaim = (int) $product->getId();
+                $price = method_exists($product, 'getFinalPrice')
+                    ? (string) $product->getFinalPrice()
+                    : (string) $product->getPrice();
                 $productData = [
-                    'id' => (int) $product->getId(),
+                    'id' => $productIdForClaim,
                     'name' => (string) $product->getName(),
                     'sku' => (string) $product->getSku(),
-                    'price' => (string) $product->getFinalPrice(),
+                    'price' => $price,
                 ];
+            } elseif ((int) $classified['productId'] > 0) {
+                $productIdForClaim = (int) $classified['productId'];
             }
         }
 
@@ -105,6 +123,8 @@ class FrontendTrackerConfig
                 'pageTypeHint' => $pageTypeHint,
                 'attributionEnabled' => $this->config->isAttributionEnabled($resolvedStoreId),
                 'enableSpaPageviews' => $this->config->isSpaPageviewsEnabled($resolvedStoreId),
+                'serverProductViewed' => $productIdForClaim > 0
+                    && $this->productViewedClaim->isClaimed($productIdForClaim),
             ],
             'product' => $productData,
             'category' => $categoryData,

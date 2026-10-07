@@ -5,6 +5,10 @@
 - [fix] Skip `magento_customer_identified` (`checkout_email`) when the quote already has a logged-in customer. Logged-in JS identify is unchanged.
 - [fix] Skip `magento_customer_updated` on checkout, PayPal, REST, GraphQL, AJAX, and IPN paths (account edits still emit).
 
+## 1.2.7
+
+- [fix] SPA history navigation to a PDP emits JS `product_viewed` when `ProductViewObserver` did not claim the product; tracker re-fetches config by `page_path` and may send client `occurred_at`. Document product views remain server-canonical.
+
 ## 1.2.6
 
 - [feat] Store health: online-store channel marking on `pantosource_order_identity.sales_channel` (frontend, graphql, webapi_rest with cart token). Purchase, cancel, refund, fulfill and order-placed events are gated to online store only; `commerce.sales_channel` on order payloads.

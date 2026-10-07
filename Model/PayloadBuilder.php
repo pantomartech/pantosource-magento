@@ -11,6 +11,7 @@ use Panto\Source\Api\ConfigInterface;
 
 use Panto\Source\Helper\BrowserContextBridge;
 use Panto\Source\Helper\CanonicalContextPath;
+use Panto\Source\Helper\ClientOccurredAt;
 use Panto\Source\Helper\ExternalId;
 use Panto\Source\Helper\MatchingSignalFields;
 use Panto\Source\Helper\PlatformString;
@@ -93,6 +94,14 @@ class PayloadBuilder
 
         $url = $this->resolveUrl($baseUrl);
         $timestamp = $this->nowIsoUtc();
+        $clientOccurred = '';
+        if (isset($data['occurred_at'])) {
+            $clientOccurred = ClientOccurredAt::normalize($data['occurred_at']);
+            unset($data['occurred_at']);
+        }
+        if ($clientOccurred !== '') {
+            $timestamp = $clientOccurred;
+        }
 
         $payload = [
             'schema_version' => '2.0',
@@ -176,6 +185,7 @@ class PayloadBuilder
             'last_client_ip',
             'last_user_agent',
             'last_cookies',
+            'occurred_at',
         ];
         $out = $data;
         foreach ($strip as $key) {
@@ -523,7 +533,7 @@ class PayloadBuilder
     {
         $ext = [
             'magento' => [
-                'module_version' => '1.2.6',
+                'module_version' => '1.2.7',
             ],
         ];
         $journeyId = $this->resolveJourneyId();
