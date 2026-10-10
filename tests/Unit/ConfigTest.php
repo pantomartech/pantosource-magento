@@ -46,4 +46,34 @@ final class ConfigTest extends TestCase
         $config = new Config($scopeConfig, $encryptor);
         $this->assertSame(self::PLAIN_API_KEY, $config->getApiKey());
     }
+
+    public function testGetIngestionBaseUrlUsesProductionWhenUnset(): void
+    {
+        $config = $this->configWithBaseUrl('');
+        $this->assertSame(Config::DEFAULT_INGESTION_BASE_URL, $config->getIngestionBaseUrl(1));
+        $this->assertSame(Config::DEFAULT_INGESTION_BASE_URL . '/events', $config->getEventsEndpointUrl(1));
+    }
+
+    public function testGetIngestionBaseUrlRewritesStagingHost(): void
+    {
+        $config = $this->configWithBaseUrl('http://events.staging.pantosource.com/');
+        $this->assertSame(Config::DEFAULT_INGESTION_BASE_URL, $config->getIngestionBaseUrl());
+    }
+
+    public function testGetIngestionBaseUrlKeepsCustomEndpoint(): void
+    {
+        $config = $this->configWithBaseUrl('https://ingest.example.com/');
+        $this->assertSame('https://ingest.example.com', $config->getIngestionBaseUrl());
+        $this->assertSame('https://ingest.example.com/events', $config->getEventsEndpointUrl());
+    }
+
+    private function configWithBaseUrl(string $baseUrl): Config
+    {
+        $scopeConfig = $this->createMock(ScopeConfigInterface::class);
+        $scopeConfig->method('getValue')
+            ->with(ConfigInterface::XML_PATH_BASE_URL, ScopeInterface::SCOPE_STORE, $this->anything())
+            ->willReturn($baseUrl);
+
+        return new Config($scopeConfig, $this->createStub(EncryptorInterface::class));
+    }
 }

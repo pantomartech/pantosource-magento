@@ -5,6 +5,10 @@
 - [fix] Skip `magento_customer_identified` (`checkout_email`) when the quote already has a logged-in customer. Logged-in JS identify is unchanged.
 - [fix] Skip `magento_customer_updated` on checkout, PayPal, REST, GraphQL, AJAX, and IPN paths (account edits still emit).
 
+## 1.2.8
+
+- [change] Ingestion base URL defaults to `https://events.pantosource.com` and is prefilled in admin. Empty values and `events.staging.pantosource.com` are rewritten to that URL (`setup:upgrade` updates saved config).
+
 ## 1.2.7
 
 - [fix] SPA history navigation to a PDP emits JS `product_viewed` when `ProductViewObserver` did not claim the product; tracker re-fetches config by `page_path` and may send client `occurred_at`. Document product views remain server-canonical.

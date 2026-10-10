@@ -7,7 +7,7 @@
                 <enabled>1</enabled>
             </general>
             <ingestion>
-                <base_url/>
+                <base_url>https://events.pantosource.com</base_url>
             </ingestion>
             <portal>
                 <base_url>https://app.pantosource.com</base_url>

@@ -27,7 +27,7 @@
                 <label>Ingestion Service</label>
                 <field id="base_url" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Ingestion Base URL</label>
-                    <comment>e.g. https://ingestion.example.com (no trailing slash)</comment>
+                    <comment>Default https://events.pantosource.com (no trailing slash). Leave as-is unless you use a custom ingestion endpoint.</comment>
                 </field>
                 <field id="api_key" translate="label" type="obscure" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>API Key</label>

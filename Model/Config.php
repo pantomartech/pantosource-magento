@@ -10,6 +10,10 @@ use Panto\Source\Api\ConfigInterface;
 
 class Config implements ConfigInterface
 {
+    public const DEFAULT_INGESTION_BASE_URL = 'https://events.pantosource.com';
+
+    public const LEGACY_STAGING_INGESTION_HOST = 'events.staging.pantosource.com';
+
     public function __construct(
         private readonly ScopeConfigInterface $scopeConfig,
         private readonly EncryptorInterface $encryptor
@@ -27,12 +31,41 @@ class Config implements ConfigInterface
 
     public function getIngestionBaseUrl(?int $storeId = null): string
     {
-        $v = (string) $this->scopeConfig->getValue(
+        $configured = (string) $this->scopeConfig->getValue(
             self::XML_PATH_BASE_URL,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
-        return rtrim($v, '/');
+
+        return self::resolveIngestionBaseUrl($configured);
+    }
+
+    /**
+     * Empty values and the retired staging host become the production ingestion URL.
+     * Any other saved URL is kept so a custom endpoint still wins.
+     */
+    public static function resolveIngestionBaseUrl(string $configured): string
+    {
+        $trimmed = rtrim(trim($configured), '/');
+        if ($trimmed === '' || self::isLegacyStagingIngestionUrl($trimmed)) {
+            return self::DEFAULT_INGESTION_BASE_URL;
+        }
+
+        return $trimmed;
+    }
+
+    public static function isLegacyStagingIngestionUrl(string $url): bool
+    {
+        $candidate = trim($url);
+        if ($candidate === '') {
+            return false;
+        }
+        if (!preg_match('#^https?://#i', $candidate)) {
+            $candidate = 'https://' . $candidate;
+        }
+        $host = parse_url($candidate, PHP_URL_HOST);
+
+        return is_string($host) && strcasecmp($host, self::LEGACY_STAGING_INGESTION_HOST) === 0;
     }
 
     public function getApiKey(?int $storeId = null): string
