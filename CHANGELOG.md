@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- [fix] Purchase `order_totals.discount_total` is sent as a magnitude (`abs`). Magento stores order discounts as negative numbers, which the ingestion schema (`commerce.discount >= 0`) rejects.
 - [fix] Skip `magento_customer_identified` (`checkout_email`) when the quote already has a logged-in customer. Logged-in JS identify is unchanged.
 - [fix] Skip `magento_customer_updated` on checkout, PayPal, REST, GraphQL, AJAX, and IPN paths (account edits still emit).
 

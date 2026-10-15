@@ -15,6 +15,15 @@ class OrderLineSerializer
     }
 
     /**
+     * Magento stores order discounts as negative numbers; the canonical `commerce.discount`
+     * must be >= 0 (ingestion schema), so send the magnitude.
+     */
+    public static function discountMagnitude(float|int|string|null $amount): string
+    {
+        return (string) abs((float) $amount);
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function getItems(OrderInterface $order): array
@@ -74,7 +83,7 @@ class OrderLineSerializer
         return [
             'subtotal' => (string) $order->getSubtotal(),
             'total' => (string) $order->getGrandTotal(),
-            'discount_total' => (string) $order->getDiscountAmount(),
+            'discount_total' => self::discountMagnitude($order->getDiscountAmount()),
             'shipping_total' => (string) $order->getShippingAmount(),
             'tax_total' => (string) $order->getTaxAmount(),
             'payment_method' => ($order->getPayment() !== null) ? (string) $order->getPayment()->getMethod() : '',
