@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- [feat] Hashed PII sends every ad-platform form (`current/pii-normalisation.md`): `phone_sha256` is the digits with the country code (national numbers get the shipping, then billing, country's calling code, trunk prefix removed), new `phone_e164_sha256` (`+` form), `email_google_sha256` and `email_microsoft_sha256` when they differ. New `Model/PiiHashes.php` (calling-code table, no dependency); `HashedPiiHasher::hashFields()` takes the phone countries; `PayloadBuilder` passes the new keys. `tests/Unit/PiiHashesTest.php` runs the shared `fixtures/pii-hash-vectors.json`. `HashedPiiHasher::normalizePhone()` removed.
 - [fix] Purchase `order_totals.discount_total` is sent as a magnitude (`abs`). Magento stores order discounts as negative numbers, which the ingestion schema (`commerce.discount >= 0`) rejects.
 - [fix] Skip `magento_customer_identified` (`checkout_email`) when the quote already has a logged-in customer. Logged-in JS identify is unchanged.
 - [fix] Skip `magento_customer_updated` on checkout, PayPal, REST, GraphQL, AJAX, and IPN paths (account edits still emit).

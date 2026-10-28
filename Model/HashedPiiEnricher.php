@@ -54,7 +54,10 @@ class HashedPiiEnricher
             'state' => $state,
             'zip' => $pick($billing, $shipping, 'getPostcode'),
             'country' => $pick($billing, $shipping, 'getCountryId'),
-        ]);
+        ], array_values(array_filter([
+            $pick($shipping, null, 'getCountryId'),
+            $pick($billing, null, 'getCountryId'),
+        ])));
 
         return $data;
     }

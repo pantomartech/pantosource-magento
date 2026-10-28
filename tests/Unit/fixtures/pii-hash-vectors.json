@@ -1,0 +1,323 @@
+{
+  "description": "Shared PII hash test cases (current/pii-normalisation.md). Every implementation must produce these exact values. Absent keys must be absent. Generated from the reference module; the normalised strings are listed so each case can be checked by hand.",
+  "email": [
+    {
+      "input": "jane@example.com",
+      "normalized": "jane@example.com",
+      "google": null,
+      "microsoft": null,
+      "hashes": {
+        "email_sha256": "8c87b489ce35cf2e2f39f80e282cb2e804932a56a213983eeeb428407d43b52d"
+      }
+    },
+    {
+      "input": " Jane@Example.COM ",
+      "normalized": "jane@example.com",
+      "google": null,
+      "microsoft": null,
+      "hashes": {
+        "email_sha256": "8c87b489ce35cf2e2f39f80e282cb2e804932a56a213983eeeb428407d43b52d"
+      }
+    },
+    {
+      "input": "john.smith@example.com",
+      "normalized": "john.smith@example.com",
+      "google": null,
+      "microsoft": "johnsmith@example.com",
+      "hashes": {
+        "email_sha256": "8e621e3d0368631d263d07a351fa8d34fba0d17c15fbcdec11a5f58008d022a0",
+        "email_microsoft_sha256": "77c15cba88f92469128047a9abfce151e12bba6aea47d36b7388c3540880e291"
+      }
+    },
+    {
+      "input": "shopper+promo@outlook.com",
+      "normalized": "shopper+promo@outlook.com",
+      "google": null,
+      "microsoft": "shopper@outlook.com",
+      "hashes": {
+        "email_sha256": "daf68bd4587fd552b287226998998babe12659bb5cc90bea714e0967b05c8072",
+        "email_microsoft_sha256": "50a501989e60f686c7e6eb90eb5621c13f7ff93c62cdcd950479d4a09413c5b4"
+      }
+    },
+    {
+      "input": "Jane.Doe+promo@Gmail.com",
+      "normalized": "jane.doe+promo@gmail.com",
+      "google": "janedoe@gmail.com",
+      "microsoft": "janedoe@gmail.com",
+      "hashes": {
+        "email_sha256": "5f0d1df1fc49e30424381b57b1d4c73e067772a4267dde043a19b026935602c8",
+        "email_google_sha256": "d6117306485ed0e50afab3ac871e98f81699151f30281527d63ff5f233656c69",
+        "email_microsoft_sha256": "d6117306485ed0e50afab3ac871e98f81699151f30281527d63ff5f233656c69"
+      }
+    },
+    {
+      "input": "jane.doe@gmail.com",
+      "normalized": "jane.doe@gmail.com",
+      "google": "janedoe@gmail.com",
+      "microsoft": "janedoe@gmail.com",
+      "hashes": {
+        "email_sha256": "831f6494ad6be4fcb3a724c3d5fef22d3ceffa3c62ef3a7984e45a0ea177f982",
+        "email_google_sha256": "d6117306485ed0e50afab3ac871e98f81699151f30281527d63ff5f233656c69",
+        "email_microsoft_sha256": "d6117306485ed0e50afab3ac871e98f81699151f30281527d63ff5f233656c69"
+      }
+    },
+    {
+      "input": "janedoe@gmail.com",
+      "normalized": "janedoe@gmail.com",
+      "google": null,
+      "microsoft": null,
+      "hashes": {
+        "email_sha256": "d6117306485ed0e50afab3ac871e98f81699151f30281527d63ff5f233656c69"
+      }
+    },
+    {
+      "input": "first.last@googlemail.com",
+      "normalized": "first.last@googlemail.com",
+      "google": "firstlast@googlemail.com",
+      "microsoft": "firstlast@googlemail.com",
+      "hashes": {
+        "email_sha256": "34dadd4cdd4717c7666e06bba658aa1d8695c42ac7a855cef7a9936f2fbe3b3f",
+        "email_google_sha256": "dcfceba1dd91c4244ce46a61822d7809014b18878d8947f827befea5b0dec6e6",
+        "email_microsoft_sha256": "dcfceba1dd91c4244ce46a61822d7809014b18878d8947f827befea5b0dec6e6"
+      }
+    },
+    {
+      "input": "   ",
+      "normalized": null,
+      "google": null,
+      "microsoft": null,
+      "hashes": null
+    }
+  ],
+  "phone": [
+    {
+      "input": "+1 212 456 7890",
+      "countries": [],
+      "digits": "12124567890",
+      "e164": "+12124567890",
+      "hashes": {
+        "phone_sha256": "a4e1117d112134f422d58a86a75792f3e8c2d4c36ce304454acc7b144ea6d45a",
+        "phone_e164_sha256": "fa7dfff6e716059994561166ef6bc4d8b87ceb80b7da25e833ce732ecc282e60"
+      }
+    },
+    {
+      "input": "(212) 456-7890",
+      "countries": [
+        "US"
+      ],
+      "digits": "12124567890",
+      "e164": "+12124567890",
+      "hashes": {
+        "phone_sha256": "a4e1117d112134f422d58a86a75792f3e8c2d4c36ce304454acc7b144ea6d45a",
+        "phone_e164_sha256": "fa7dfff6e716059994561166ef6bc4d8b87ceb80b7da25e833ce732ecc282e60"
+      }
+    },
+    {
+      "input": "212.456.7890",
+      "countries": [
+        null,
+        "US"
+      ],
+      "digits": "12124567890",
+      "e164": "+12124567890",
+      "hashes": {
+        "phone_sha256": "a4e1117d112134f422d58a86a75792f3e8c2d4c36ce304454acc7b144ea6d45a",
+        "phone_e164_sha256": "fa7dfff6e716059994561166ef6bc4d8b87ceb80b7da25e833ce732ecc282e60"
+      }
+    },
+    {
+      "input": "001 212 456 7890",
+      "countries": [
+        "GB"
+      ],
+      "digits": "12124567890",
+      "e164": "+12124567890",
+      "hashes": {
+        "phone_sha256": "a4e1117d112134f422d58a86a75792f3e8c2d4c36ce304454acc7b144ea6d45a",
+        "phone_e164_sha256": "fa7dfff6e716059994561166ef6bc4d8b87ceb80b7da25e833ce732ecc282e60"
+      }
+    },
+    {
+      "input": "020 7946 0018",
+      "countries": [
+        "GB"
+      ],
+      "digits": "442079460018",
+      "e164": "+442079460018",
+      "hashes": {
+        "phone_sha256": "99a4599795d24445a5be21117f375c1bbe9e795daf7f62666686ce081e1f32dc",
+        "phone_e164_sha256": "faad3b10918e39b5f4d5334f1e1e128719608e8bd3ad3b963dc30187b4518e23"
+      }
+    },
+    {
+      "input": "+44 20 7946 0018",
+      "countries": [
+        "SE"
+      ],
+      "digits": "442079460018",
+      "e164": "+442079460018",
+      "hashes": {
+        "phone_sha256": "99a4599795d24445a5be21117f375c1bbe9e795daf7f62666686ce081e1f32dc",
+        "phone_e164_sha256": "faad3b10918e39b5f4d5334f1e1e128719608e8bd3ad3b963dc30187b4518e23"
+      }
+    },
+    {
+      "input": "070-123 45 67",
+      "countries": [
+        "SE",
+        "US"
+      ],
+      "digits": "46701234567",
+      "e164": "+46701234567",
+      "hashes": {
+        "phone_sha256": "a7274f98c43038d9c630738ac54c4cd06495600f29d7904131a2474a91d3d042",
+        "phone_e164_sha256": "19317f0437d748c2e75c9d451197ae3ccc2e67c6d1e05cba41f25e639e3a7528"
+      }
+    },
+    {
+      "input": "070-123 45 67",
+      "countries": [
+        "US",
+        "SE"
+      ],
+      "digits": "10701234567",
+      "e164": "+10701234567",
+      "hashes": {
+        "phone_sha256": "3df70408e4b858c0a70e605b0d819fae934585f9d31ff0451658c651c3e39726",
+        "phone_e164_sha256": "53bb327a7107d7669a9b980dbd9820e1147872fb13d76f6552718e36ada25606"
+      }
+    },
+    {
+      "input": "0412 345 678",
+      "countries": [
+        "AU"
+      ],
+      "digits": "61412345678",
+      "e164": "+61412345678",
+      "hashes": {
+        "phone_sha256": "222e24d90b23ba2af558a2891bfa399f19a7eb9f33df34a7d6809b97c5a97246",
+        "phone_e164_sha256": "bc65da54a3ddbacfdc93a0400f0a2d78e41c2180c8255015e9616facfe56f58a"
+      }
+    },
+    {
+      "input": "+61 412 345 678",
+      "countries": [],
+      "digits": "61412345678",
+      "e164": "+61412345678",
+      "hashes": {
+        "phone_sha256": "222e24d90b23ba2af558a2891bfa399f19a7eb9f33df34a7d6809b97c5a97246",
+        "phone_e164_sha256": "bc65da54a3ddbacfdc93a0400f0a2d78e41c2180c8255015e9616facfe56f58a"
+      }
+    },
+    {
+      "input": "0412 345 678",
+      "countries": [],
+      "digits": "0412345678",
+      "e164": null,
+      "hashes": {
+        "phone_sha256": "e41826c28802a198d4806265956e297cca877a5118130441691bed37aad57c72"
+      }
+    },
+    {
+      "input": "12345",
+      "countries": [
+        "US"
+      ],
+      "digits": "12345",
+      "e164": null,
+      "hashes": {
+        "phone_sha256": "5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5"
+      }
+    },
+    {
+      "input": "+1 555 0100",
+      "countries": [],
+      "digits": "15550100",
+      "e164": "+15550100",
+      "hashes": {
+        "phone_sha256": "07e73d4c25449384f7c9ea83eb4802558df2a6ae9be7f6096fd4cb3a0debbaee",
+        "phone_e164_sha256": "602cd7fbbe41688e2d90224bcac362db2f1ff2e2ba7487d8585c9ce226cb6d00"
+      }
+    },
+    {
+      "input": "1 212 456 7890",
+      "countries": [
+        "US"
+      ],
+      "digits": "12124567890",
+      "e164": "+12124567890",
+      "hashes": {
+        "phone_sha256": "a4e1117d112134f422d58a86a75792f3e8c2d4c36ce304454acc7b144ea6d45a",
+        "phone_e164_sha256": "fa7dfff6e716059994561166ef6bc4d8b87ceb80b7da25e833ce732ecc282e60"
+      }
+    },
+    {
+      "input": "06 1234 5678",
+      "countries": [
+        "IT"
+      ],
+      "digits": "390612345678",
+      "e164": "+390612345678",
+      "hashes": {
+        "phone_sha256": "472e1123cd4e2f66f1df06bd488dc6135dab8f80cbfcc4af144d042c005f0fb2",
+        "phone_e164_sha256": "37b702607839d6dc5fc81d95b52e550e336413bf7ae2e04cafeca79f066ea44b"
+      }
+    },
+    {
+      "input": "8 912 345-67-89",
+      "countries": [
+        "RU"
+      ],
+      "digits": "79123456789",
+      "e164": "+79123456789",
+      "hashes": {
+        "phone_sha256": "dbae582ee1f37b15623829ece40b66a8eb5162337ab0a8b7cf1b86cb300391bc",
+        "phone_e164_sha256": "694e8de862e4f3198b67f7a4aa9f4dfb123c5b78b0a72460ce882c405b111e63"
+      }
+    },
+    {
+      "input": "06 1 234 5678",
+      "countries": [
+        "HU"
+      ],
+      "digits": "3612345678",
+      "e164": "+3612345678",
+      "hashes": {
+        "phone_sha256": "b6e10f1a0748545c02d57d0b9a0134ebbbe262d166246766272f6e6fc08e4824",
+        "phone_e164_sha256": "948e8acab661d17e2b6456c31271cc4028824e6a6ceb51d40837e365c056c6c3"
+      }
+    },
+    {
+      "input": "+46 (0)70-123 45 67",
+      "countries": [],
+      "digits": "46701234567",
+      "e164": "+46701234567",
+      "hashes": {
+        "phone_sha256": "a7274f98c43038d9c630738ac54c4cd06495600f29d7904131a2474a91d3d042",
+        "phone_e164_sha256": "19317f0437d748c2e75c9d451197ae3ccc2e67c6d1e05cba41f25e639e3a7528"
+      }
+    },
+    {
+      "input": "070-123 45 67",
+      "countries": [
+        "XX",
+        "se"
+      ],
+      "digits": "46701234567",
+      "e164": "+46701234567",
+      "hashes": {
+        "phone_sha256": "a7274f98c43038d9c630738ac54c4cd06495600f29d7904131a2474a91d3d042",
+        "phone_e164_sha256": "19317f0437d748c2e75c9d451197ae3ccc2e67c6d1e05cba41f25e639e3a7528"
+      }
+    },
+    {
+      "input": "n/a",
+      "countries": [
+        "US"
+      ],
+      "digits": null,
+      "e164": null,
+      "hashes": null
+    }
+  ]
+}

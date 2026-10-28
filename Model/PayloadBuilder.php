@@ -229,7 +229,8 @@ class PayloadBuilder
         if (!empty($data['hashed_user']) && is_array($data['hashed_user'])) {
             $identifiers = array_filter(
                 array_map('strval', array_intersect_key($data['hashed_user'], array_flip(
-                    ['email_sha256', 'phone_sha256', 'first_name_sha256', 'last_name_sha256',
+                    ['email_sha256', 'email_google_sha256', 'email_microsoft_sha256',
+                     'phone_sha256', 'phone_e164_sha256', 'first_name_sha256', 'last_name_sha256',
                      'city_sha256', 'state_sha256', 'zip_sha256', 'country_sha256']
                 )))
             );

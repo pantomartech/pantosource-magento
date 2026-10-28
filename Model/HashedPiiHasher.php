@@ -14,20 +14,25 @@ class HashedPiiHasher
         return $trimmed === '' ? '' : hash('sha256', $trimmed);
     }
 
-    public static function normalizePhone(string $value): string
-    {
-        return preg_replace('/\D+/', '', $value) ?? '';
-    }
-
     /**
+     * Email and phone in every ad-platform form (PiiHashes, current/pii-normalisation.md): phone digits with
+     * the country code (national numbers read in $phoneCountries, shipping first) plus the E.164 form, and
+     * Google's / Microsoft's email forms when they differ.
+     *
      * @param array<string, string> $fields Keys: email, phone, first_name, last_name, city, state, zip, country
+     * @param list<string> $phoneCountries ISO country codes, shipping then billing
      * @return array<string, string>
      */
-    public static function hashFields(array $fields): array
+    public static function hashFields(array $fields, array $phoneCountries = []): array
     {
+        $out = [];
+        if (array_key_exists('email', $fields)) {
+            $out += PiiHashes::emailHashes((string) $fields['email']);
+        }
+        if (array_key_exists('phone', $fields)) {
+            $out += PiiHashes::phoneHashes((string) $fields['phone'], $phoneCountries);
+        }
         $map = [
-            'email' => 'email_sha256',
-            'phone' => 'phone_sha256',
             'first_name' => 'first_name_sha256',
             'last_name' => 'last_name_sha256',
             'city' => 'city_sha256',
@@ -35,16 +40,11 @@ class HashedPiiHasher
             'zip' => 'zip_sha256',
             'country' => 'country_sha256',
         ];
-        $out = [];
         foreach ($map as $from => $to) {
             if (!array_key_exists($from, $fields)) {
                 continue;
             }
-            $raw = (string) $fields[$from];
-            if ($from === 'phone') {
-                $raw = self::normalizePhone($raw);
-            }
-            $hashed = self::hash($raw);
+            $hashed = self::hash((string) $fields[$from]);
             if ($hashed !== '') {
                 $out[$to] = $hashed;
             }
@@ -76,6 +76,14 @@ class HashedPiiHasher
             }
             return '';
         };
+        $countryOf = static function (array $address): string {
+            foreach (['country_code', 'country'] as $key) {
+                if (!empty($address[$key]) && is_string($address[$key])) {
+                    return $address[$key];
+                }
+            }
+            return '';
+        };
         return self::hashFields([
             'email' => $email,
             'phone' => $pick(['phone']),
@@ -85,6 +93,6 @@ class HashedPiiHasher
             'state' => $pick(['region_code', 'region', 'state']),
             'zip' => $pick(['postal_code', 'zip']),
             'country' => $pick(['country_code', 'country']),
-        ]);
+        ], array_values(array_filter([$countryOf($shipping), $countryOf($billing)])));
     }
 }

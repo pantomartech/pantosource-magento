@@ -34,7 +34,7 @@ final class HashedPiiEnricherTest extends TestCase
             $out['hashed_user']['email_sha256']
         );
         $this->assertSame(
-            HashedPiiHasher::hashFields(['phone' => '3054920600'])['phone_sha256'],
+            hash('sha256', '13054920600'),
             $out['hashed_user']['phone_sha256']
         );
         $this->assertSame(HashedPiiHasher::hash('fl'), $out['hashed_user']['state_sha256']);
@@ -95,7 +95,7 @@ final class HashedPiiEnricherTest extends TestCase
         $out = $enricher->enrich($order, [], 1);
         $this->assertSame(HashedPiiHasher::hash('miami'), $out['hashed_user']['city_sha256']);
         $this->assertSame(HashedPiiHasher::hash('fl'), $out['hashed_user']['state_sha256']);
-        $this->assertSame(HashedPiiHasher::hashFields(['phone' => '3055550100'])['phone_sha256'], $out['hashed_user']['phone_sha256']);
+        $this->assertSame(hash('sha256', '13055550100'), $out['hashed_user']['phone_sha256']);
     }
 
     private function order(): OrderInterface
