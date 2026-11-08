@@ -33,6 +33,60 @@ final class CartAddEmitterTest extends TestCase
         $this->assertFalse($emitter->emitFromQuoteItem($item));
     }
 
+    public function testNewLineEmitsOnceAfterSaveWithItemId(): void
+    {
+        $dispatcher = $this->createMock(EventDispatcher::class);
+        $dispatcher->expects($this->once())->method('dispatch')->with(
+            'magento_add_to_cart',
+            $this->callback(static function (array $data): bool {
+                return ($data['quote_item_id'] ?? null) === 73 && ($data['cart_id'] ?? null) === 357;
+            })
+        );
+        $emitter = $this->emitter($dispatcher);
+        $item = new FakeQuoteItem(id: 0, quoteId: 0);
+
+        $this->assertFalse($emitter->emitFromQuoteItem($item));
+        $this->assertFalse($emitter->emitFromQuoteItem($item));
+
+        $item->id = 73;
+        $item->quoteId = 357;
+        $this->assertTrue($emitter->emitPendingAfterSave($item));
+        $this->assertFalse($emitter->emitFromQuoteItem($item));
+        $this->assertFalse($emitter->emitPendingAfterSave($item));
+    }
+
+    public function testSaveOfItemThatWasNotDeferredDoesNotEmit(): void
+    {
+        $dispatcher = $this->createMock(EventDispatcher::class);
+        $dispatcher->expects($this->never())->method('dispatch');
+        $emitter = $this->emitter($dispatcher);
+        $this->assertFalse($emitter->emitPendingAfterSave(new FakeQuoteItem(id: 5)));
+        $this->assertFalse($emitter->emitPendingAfterSave(null));
+    }
+
+    public function testConfigurableChildAndParentEmitOnceForParentLine(): void
+    {
+        $dispatcher = $this->createMock(EventDispatcher::class);
+        $dispatcher->expects($this->once())->method('dispatch')->with(
+            'magento_add_to_cart',
+            $this->callback(static function (array $data): bool {
+                return ($data['product_id'] ?? null) === 1 && ($data['quote_item_id'] ?? null) === 20;
+            })
+        );
+        $emitter = $this->emitter($dispatcher);
+        $parent = new FakeQuoteItem(id: 0);
+        $child = new FakeChildQuoteItem($parent, productId: 2, id: 0);
+
+        $this->assertFalse($emitter->emitFromQuoteItem($child));
+        $this->assertFalse($emitter->emitFromQuoteItem($parent));
+
+        $parent->id = 20;
+        $child->id = 21;
+        $this->assertTrue($emitter->emitPendingAfterSave($parent));
+        $this->assertFalse($emitter->emitPendingAfterSave($child));
+        $this->assertFalse($emitter->emitFromQuoteItem($child));
+    }
+
     public function testSkipsWhenItemMissing(): void
     {
         $dispatcher = $this->createMock(EventDispatcher::class);
@@ -258,6 +312,36 @@ final class FakeQuoteItem
     public function getOrigData(string $key): mixed
     {
         return $key === 'qty' ? $this->origQty : null;
+    }
+}
+
+final class FakeChildQuoteItem
+{
+    public function __construct(
+        private FakeQuoteItem $parent,
+        public int $productId = 2,
+        public int $id = 0
+    ) {
+    }
+
+    public function getParentItem(): FakeQuoteItem
+    {
+        return $this->parent;
+    }
+
+    public function getProductId(): int
+    {
+        return $this->productId;
+    }
+
+    public function getId(): int
+    {
+        return $this->id;
+    }
+
+    public function getItemId(): int
+    {
+        return $this->id;
     }
 }
 

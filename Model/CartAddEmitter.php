@@ -13,6 +13,7 @@ use Panto\Source\Helper\StorefrontContext;
 
 /**
  * Shared magento_add_to_cart emit + request-scoped dedupe for observers and repository plugins.
+ * Unsaved lines are deferred until sales_quote_item_save_commit_after (CartAddSaveCommitObserver).
  */
 class CartAddEmitter
 {
@@ -20,6 +21,7 @@ class CartAddEmitter
     public const SKIP_NO_ITEM = 'skipped_no_item';
     public const SKIP_DEDUPE = 'skipped_dedupe';
     public const SKIP_NOT_QTY_INCREASE = 'skipped_not_qty_increase';
+    public const DEFERRED_UNSAVED = 'deferred_unsaved';
     public const OBSERVED = 'observed';
 
     public function __construct(
@@ -38,6 +40,7 @@ class CartAddEmitter
             $this->markSkip(self::SKIP_NO_ITEM, ['reason' => 'not_object']);
             return false;
         }
+        $item = $this->lineItem($item);
 
         $productId = QuoteItemFields::int($item, 'product_id', 'getProductId');
         if ($productId <= 0) {
@@ -45,10 +48,16 @@ class CartAddEmitter
             return false;
         }
 
+        $itemId = $this->readItemId($item);
+        if ($itemId <= 0) {
+            $this->emissionGate->defer($item);
+            $this->markSkip(self::DEFERRED_UNSAVED, ['product_id' => $productId]);
+            return false;
+        }
+
         $qty = QuoteItemFields::float($item, 'qty', 'getQty');
         $cartId = $this->resolveCartId($item);
-        $itemId = $this->readItemId($item);
-        $dedupeKey = CartAddEmissionGate::dedupeKey($itemId, $cartId, $productId, $qty);
+        $dedupeKey = CartAddEmissionGate::dedupeKey($itemId);
         if (!$this->emissionGate->shouldEmit($dedupeKey)) {
             $this->markSkip(self::SKIP_DEDUPE, ['dedupe_key' => $dedupeKey]);
             return false;
@@ -71,6 +80,15 @@ class CartAddEmitter
         return $this->emitFromQuoteItem($result);
     }
 
+    /** Emits a line deferred by emitFromQuoteItem() now that its save committed and it has an id. */
+    public function emitPendingAfterSave(mixed $item): bool
+    {
+        if (!is_object($item) || !$this->emissionGate->takePending($item)) {
+            return false;
+        }
+        return $this->emitFromQuoteItem($item);
+    }
+
     /**
      * @param array<string, mixed> $context
      */
@@ -85,6 +103,23 @@ class CartAddEmitter
             'context' => $context,
             'payload' => [],
         ]);
+    }
+
+    /**
+     * Configurable and bundle adds hand observers the child line on some events and the parent on
+     * others; the parent is the cart line, so both resolve to the same dedupe key.
+     */
+    private function lineItem(object $item): object
+    {
+        if (!is_callable([$item, 'getParentItem'])) {
+            return $item;
+        }
+        try {
+            $parent = $item->getParentItem();
+        } catch (\Throwable) {
+            return $item;
+        }
+        return is_object($parent) ? $parent : $item;
     }
 
     private function readItemId(object $item): int
