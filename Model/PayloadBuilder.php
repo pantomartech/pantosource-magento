@@ -15,6 +15,7 @@ use Panto\Source\Helper\ClientOccurredAt;
 use Panto\Source\Helper\ExternalId;
 use Panto\Source\Helper\MatchingSignalFields;
 use Panto\Source\Helper\PlatformString;
+use Panto\Source\Helper\SessionLandingPolicy;
 
 class PayloadBuilder
 {
@@ -413,6 +414,13 @@ class PayloadBuilder
                 $metaCtx = array_merge($window['meta'], $metaCtx);
             }
 
+            foreach ($this->requestCampaignTouch() as $mk => $val) {
+                if (empty($first[$mk])) {
+                    $first[$mk] = $val;
+                }
+                $last[$mk] = $val;
+            }
+
             foreach (AttributionWindowCapture::ATTRIBUTION_KEYS as $mk) {
                 if (empty($data[$mk]) || !is_string($data[$mk])) {
                     continue;
@@ -607,6 +615,21 @@ class PayloadBuilder
             (string) $this->httpRequest->getServer('HTTP_X_FORWARDED_FOR', ''),
             (string) $this->httpRequest->getServer('REMOTE_ADDR', ''),
         ]);
+    }
+
+    /**
+     * The cookie touch is written when the tracker posts this page's pageview, after server-side
+     * emits on the same request (product_viewed); a campaign landing adds its own UTMs and click
+     * ids here so those events do not report the previous page's touch (ATR-16).
+     *
+     * @return array<string, string>
+     */
+    private function requestCampaignTouch(): array
+    {
+        if ($this->httpRequest->isAjax()) {
+            return [];
+        }
+        return SessionLandingPolicy::campaignTouch($this->httpRequest->getUriString());
     }
 
     private function nowIsoUtc(): string

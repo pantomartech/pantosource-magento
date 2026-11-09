@@ -87,4 +87,27 @@ final class SessionLandingPolicy
         }
         return $url;
     }
+
+    /**
+     * UTMs and click ids of a campaign landing URL, keyed as in the attribution cookie (`ScCid` →
+     * `sccid`); [] when the URL is not a new campaign landing.
+     *
+     * @return array<string, string>
+     */
+    public static function campaignTouch(string $url): array
+    {
+        if (self::freshCampaignLanding($url) === '') {
+            return [];
+        }
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $touch = [];
+        foreach (self::CAMPAIGN_PARAMS as $key) {
+            $value = $query[$key] ?? null;
+            if (!is_string($value) || trim($value) === '') {
+                continue;
+            }
+            $touch[strtolower($key)] = trim($value);
+        }
+        return $touch;
+    }
 }
