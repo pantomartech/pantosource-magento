@@ -98,13 +98,27 @@ define([], function () {
 
     var BROWSER_CTX_COOKIE = 'pantosource_browser_ctx';
 
+    var SESSION_LANDING_KEY = 'pantosource_session_landing';
+    var NON_LANDING_PATH = /^\/(checkout|customer\/section|pantosource\/|rest\/|graphql|static\/|media\/)/i;
+
+    /** Keep the tab's first page, unless this page is a new campaign landing (ATR-16; SessionLandingPolicy.php). */
+    function resolveSessionLanding() {
+        var stored = sessionStorage.getItem(SESSION_LANDING_KEY) || '';
+        var current = window.location.href || '';
+        var isNewCampaignLanding = Object.keys(getAttributionFromUrl()).length > 0;
+        if (stored && !isNewCampaignLanding) {
+            return stored;
+        }
+        if (!current || NON_LANDING_PATH.test(window.location.pathname || '/')) {
+            return stored;
+        }
+        sessionStorage.setItem(SESSION_LANDING_KEY, current);
+        return current;
+    }
+
     function writeBrowserContextCookie() {
         try {
-            var landing = sessionStorage.getItem('pantosource_session_landing');
-            if (!landing) {
-                landing = window.location.href || '';
-                sessionStorage.setItem('pantosource_session_landing', landing);
-            }
+            var landing = resolveSessionLanding();
             var payload = {
                 session: { landing_url: landing },
                 device: {

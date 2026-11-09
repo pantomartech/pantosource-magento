@@ -28,6 +28,15 @@ final class TrackerJsContractTest extends TestCase
         $this->assertStringContainsString('occurred_at', $source);
     }
 
+    public function testCampaignLandingReplacesSessionLanding(): void
+    {
+        $source = $this->trackerSource();
+        $this->assertStringContainsString('function resolveSessionLanding()', $source);
+        $this->assertStringContainsString('Object.keys(getAttributionFromUrl()).length > 0', $source);
+        $this->assertStringContainsString('NON_LANDING_PATH', $source);
+        $this->assertStringContainsString('var landing = resolveSessionLanding();', $source);
+    }
+
     private function trackerSource(): string
     {
         $path = dirname(__DIR__, 2) . '/view/frontend/web/js/tracker.js';

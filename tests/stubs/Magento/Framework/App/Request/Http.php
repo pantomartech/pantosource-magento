@@ -5,6 +5,28 @@ namespace Magento\Framework\App\Request;
 
 class Http
 {
+    public string $uriString = '';
+
+    public bool $ajax = false;
+
+    /** @var array<string, string> */
+    public array $cookies = [];
+
+    public function getUriString(): string
+    {
+        return $this->uriString;
+    }
+
+    /**
+     * @param string $name
+     * @param mixed $default
+     * @return mixed
+     */
+    public function getCookie($name, $default = null)
+    {
+        return $this->cookies[$name] ?? $default;
+    }
+
     /**
      * @param string $key
      * @param mixed $default
@@ -37,7 +59,7 @@ class Http
 
     public function isAjax(): bool
     {
-        return false;
+        return $this->ajax;
     }
 
     /**
