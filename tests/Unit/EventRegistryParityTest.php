@@ -33,6 +33,23 @@ final class EventRegistryParityTest extends TestCase
         $this->assertContains('wishlist_id', $opt);
     }
 
+    public function testWishlistRemoveRequiresProductId(): void
+    {
+        $schema = EventRegistry::getRegistry()['magento_remove_from_wishlist'];
+        $this->assertSame('track', $schema['type']);
+        $this->assertSame(['product_id'], $schema['required_keys']);
+        $this->assertContains('wishlist_id', $schema['optional_keys']);
+    }
+
+    public function testPageEngagementNumericKeysOptional(): void
+    {
+        $schema = EventRegistry::getRegistry()['magento_page_engagement'];
+        $this->assertSame('track', $schema['type']);
+        $this->assertSame([], $schema['required_keys']);
+        $this->assertContains('engaged_ms', $schema['optional_keys']);
+        $this->assertContains('max_scroll_pct', $schema['optional_keys']);
+    }
+
     public function testPaymentStatusEventRegistered(): void
     {
         $registry = EventRegistry::getRegistry();

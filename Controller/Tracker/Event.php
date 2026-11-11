@@ -14,6 +14,7 @@ use Magento\Framework\Data\Form\FormKey;
 use Magento\Framework\UrlInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Panto\Source\Api\ConfigInterface;
+use Panto\Source\Helper\PageEngagementFields;
 use Panto\Source\Helper\QuoteCommerceSnapshot;
 use Panto\Source\Model\AttributionWindowCapture;
 use Panto\Source\Model\EventDispatcher;
@@ -93,6 +94,7 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
             'checkout_initiated',
             'add_payment_info',
             'magento_customer_identified',
+            PageEngagementFields::EVENT_NAME,
         ];
         if (!in_array($eventName, $allowed, true)) {
             return $result->setData(['ok' => false, 'error' => 'unsupported_event'])->setHttpResponseCode(400);
@@ -112,6 +114,10 @@ class Event extends \Magento\Framework\App\Action\Action implements HttpPostActi
             if ($email !== '') {
                 $data['email'] = $email;
             }
+        }
+
+        if ($eventName === PageEngagementFields::EVENT_NAME) {
+            $data = PageEngagementFields::sanitize($data);
         }
 
         if ($eventName === 'add_payment_info') {

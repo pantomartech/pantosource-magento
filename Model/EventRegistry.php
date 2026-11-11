@@ -114,6 +114,16 @@ class EventRegistry
                 'required_keys' => ['product_id'],
                 'optional_keys' => ['sku', 'unit_price', 'currency', 'wishlist_id', 'context'],
             ],
+            'magento_remove_from_wishlist' => [
+                'type' => 'track',
+                'required_keys' => ['product_id'],
+                'optional_keys' => ['sku', 'wishlist_id', 'context'],
+            ],
+            'magento_page_engagement' => [
+                'type' => 'track',
+                'required_keys' => [],
+                'optional_keys' => ['engaged_ms', 'max_scroll_pct', 'context'],
+            ],
             'add_payment_info' => [
                 'type' => 'track',
                 'required_keys' => [],

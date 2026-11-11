@@ -239,10 +239,12 @@ define([], function () {
         }).catch(function () {});
     }
 
-    function postEvent(cfg, eventName, data) {
-        if (!cfg.eventUrl || !cfg.formKey || !eventName) {
-            return;
-        }
+    function canPostEvent(cfg, eventName) {
+        return !!(cfg && cfg.eventUrl && cfg.formKey && eventName);
+    }
+
+    /** Request for tracker/event: { url, payload, journeyId }. Shared by postEvent and postEventOnUnload. */
+    function buildEventRequest(cfg, eventName, data) {
         var attrOn =
             !cfg.flags ||
             cfg.flags.attributionEnabled === undefined ||
@@ -286,15 +288,28 @@ define([], function () {
             sendMarker(cfg, 'frontend_send', eventName, payloadData);
         }
 
-        fetch(urlWithFormKey(cfg.eventUrl, cfg.formKey), {
+        return {
+            url: urlWithFormKey(cfg.eventUrl, cfg.formKey),
+            payload: payload,
+            journeyId: journeyId
+        };
+    }
+
+    function postEvent(cfg, eventName, data) {
+        if (!canPostEvent(cfg, eventName)) {
+            return;
+        }
+        var request = buildEventRequest(cfg, eventName, data);
+
+        fetch(request.url, {
             method: 'POST',
             credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
-                'X-Trace-Id': journeyId || ''
+                'X-Trace-Id': request.journeyId || ''
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(request.payload)
         })
             .then(function (response) {
                 if (cfg.debug) {
@@ -306,6 +321,134 @@ define([], function () {
                     console.warn('[PantoSource] tracker/event failed', err);
                 }
             });
+    }
+
+    /**
+     * Same request as postEvent, for page unload: a plain fetch can be cancelled when the page
+     * goes away, a beacon (or keepalive fetch) is not. The controller reads the raw JSON body.
+     */
+    function postEventOnUnload(cfg, eventName, data) {
+        if (!canPostEvent(cfg, eventName)) {
+            return;
+        }
+        var request = buildEventRequest(cfg, eventName, data);
+        var body = JSON.stringify(request.payload);
+        try {
+            if (
+                navigator.sendBeacon &&
+                navigator.sendBeacon(request.url, new Blob([body], { type: 'application/json' }))
+            ) {
+                return;
+            }
+        } catch (e) {
+            /* sendBeacon unavailable or rejected; fall back to keepalive fetch */
+        }
+        fetch(request.url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-Trace-Id': request.journeyId || ''
+            },
+            body: body
+        }).catch(function () {});
+    }
+
+    var ENGAGEMENT_EVENT = 'magento_page_engagement';
+    // Engaged time stops counting this long after the last input or scroll.
+    var ENGAGEMENT_IDLE_MS = 30000;
+    var ENGAGEMENT_MIN_MS = 1000;
+    var ENGAGEMENT_INPUT_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'wheel', 'pointerdown'];
+    var PAGE_LOAD_ID = Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+    function readScrollPercent() {
+        var doc = document.documentElement;
+        var bodyHeight = document.body ? document.body.scrollHeight : 0;
+        var scrollable = Math.max(doc ? doc.scrollHeight : 0, bodyHeight) - (window.innerHeight || 0);
+        if (scrollable <= 0) {
+            return 100;
+        }
+        var top = window.scrollY || window.pageYOffset || (doc ? doc.scrollTop : 0) || 0;
+        return Math.min(100, Math.max(0, Math.round((top / scrollable) * 100)));
+    }
+
+    /**
+     * Engaged time = page visible and focused, and an input or scroll within ENGAGEMENT_IDLE_MS.
+     * Sent once per page load on the first hide (visibilitychange to hidden or pagehide).
+     */
+    function setupPageEngagement(cfg) {
+        var engagedMs = 0;
+        var activeSince = 0;
+        var lastInputAt = Date.now();
+        var maxScrollPct = 0;
+        var flushed = false;
+
+        function isActive() {
+            if (document.visibilityState === 'hidden') {
+                return false;
+            }
+            return typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+        }
+
+        function accumulate(now) {
+            if (activeSince > 0) {
+                var end = Math.min(now, lastInputAt + ENGAGEMENT_IDLE_MS);
+                if (end > activeSince) {
+                    engagedMs += end - activeSince;
+                }
+            }
+            activeSince = isActive() ? now : 0;
+        }
+
+        function onInput() {
+            var now = Date.now();
+            accumulate(now);
+            lastInputAt = now;
+            activeSince = isActive() ? now : 0;
+        }
+
+        function onScroll() {
+            maxScrollPct = Math.max(maxScrollPct, readScrollPercent());
+        }
+
+        function flush() {
+            if (flushed) {
+                return;
+            }
+            flushed = true;
+            accumulate(Date.now());
+            var ms = Math.round(engagedMs);
+            if (ms < ENGAGEMENT_MIN_MS) {
+                return;
+            }
+            postEventOnUnload(cfg, ENGAGEMENT_EVENT, {
+                engaged_ms: ms,
+                max_scroll_pct: Math.round(maxScrollPct),
+                page_type: (cfg.flags && cfg.flags.pageTypeHint) || 'page',
+                dedupe_key: ENGAGEMENT_EVENT + ':' + PAGE_LOAD_ID
+            });
+        }
+
+        ENGAGEMENT_INPUT_EVENTS.forEach(function (name) {
+            window.addEventListener(name, onInput, { passive: true, capture: true });
+        });
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('focus', onInput);
+        window.addEventListener('blur', function () {
+            accumulate(Date.now());
+        });
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') {
+                flush();
+                return;
+            }
+            onInput();
+        });
+        window.addEventListener('pagehide', flush);
+        onScroll();
+        activeSince = isActive() ? Date.now() : 0;
     }
 
     var PRODUCT_VIEWED_OCCURRED_PREFIX = 'panto_pv_occurred_at:';
@@ -518,6 +661,7 @@ define([], function () {
         onReady(function () {
             trackPageview(cfg, fired);
             setupSpaPageviews(cfg, fired);
+            setupPageEngagement(cfg);
 
             // Document PDP: product_viewed is server-canonical (ProductViewObserver).
             // SPA history to a PDP: JS re-fetches config and may emit product_viewed when

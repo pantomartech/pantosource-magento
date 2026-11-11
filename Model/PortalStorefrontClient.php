@@ -13,7 +13,7 @@ use Psr\Log\LoggerInterface;
 class PortalStorefrontClient
 {
     private const INTEGRATION = 'magento';
-    private const MODULE_VERSION = '1.2.8';
+    private const MODULE_VERSION = '1.2.9';
 
     public function __construct(
         private readonly Curl $curl,

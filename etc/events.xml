@@ -76,6 +76,12 @@
     <event name="wishlist_add_product">
         <observer name="pantosource_wishlist_add" instance="Panto\Source\Observer\WishlistAddObserver"/>
     </event>
+    <event name="controller_action_predispatch_wishlist_index_remove">
+        <observer name="pantosource_wishlist_remove_capture" instance="Panto\Source\Observer\WishlistRemoveObserver"/>
+    </event>
+    <event name="controller_action_postdispatch_wishlist_index_remove">
+        <observer name="pantosource_wishlist_remove" instance="Panto\Source\Observer\WishlistRemoveObserver"/>
+    </event>
     <event name="customer_account_edited">
         <observer name="pantosource_customer_updated" instance="Panto\Source\Observer\CustomerUpdateObserver"/>
     </event>

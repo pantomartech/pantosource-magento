@@ -12,6 +12,13 @@
 - [fix] Skip `magento_customer_identified` (`checkout_email`) when the quote already has a logged-in customer. Logged-in JS identify is unchanged.
 - [fix] Skip `magento_customer_updated` on checkout, PayPal, REST, GraphQL, AJAX, and IPN paths (account edits still emit).
 
+## 1.2.9
+
+- [feat] New event `magento_page_engagement` from the storefront tracker: sent once per page load on the first `visibilitychange` to hidden or `pagehide` (`navigator.sendBeacon` with a JSON blob, keepalive `fetch` fallback) with `data.engaged_ms` (visible and focused time; stops counting 30 s after the last input or scroll) and `data.max_scroll_pct` (0–100). Pages with under 1 s of engaged time send nothing. `POST /pantosource/tracker/event` now accepts it and casts and clamps both values (`engaged_ms` 0–86400000, `max_scroll_pct` 0–100; non-numeric values are dropped) in the new `Helper/PageEngagementFields.php`. Not sent to ad platforms. Run `setup:static-content:deploy` (tracker JS) and `cache:flush`.
+- [feat] New event `magento_remove_from_wishlist` (`product_id`, `sku`, `wishlist_id`, `context`) from the new `WishlistRemoveObserver` on the storefront wishlist remove action (`wishlist/index/remove?item=`). `controller_action_predispatch_wishlist_index_remove` loads the wishlist item before Magento deletes it; `controller_action_postdispatch_wishlist_index_remove` emits only when the item row is gone, so a rejected remove sends nothing. Not sent to ad platforms. Run `setup:di:compile` and `cache:flush` (new observer in `etc/events.xml`).
+- [change] `EventRegistry` now registers `magento_remove_from_wishlist` (`product_id` required) and `magento_page_engagement` (`engaged_ms`, `max_scroll_pct` optional), and a unit test checks its keys against `platformEvents.magento` in the canonical registry copy `tests/fixtures/event-registry.json`.
+- [change] `extensions.magento.module_version` and the portal client version header report **1.2.9**.
+
 ## 1.2.8
 
 - [change] Ingestion base URL defaults to `https://events.pantosource.com` and is prefilled in admin. Empty values and `events.staging.pantosource.com` are rewritten to that URL (`setup:upgrade` updates saved config).

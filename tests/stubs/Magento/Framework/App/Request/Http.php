@@ -52,6 +52,11 @@ class Http
         return '';
     }
 
+    public function getFullActionName(): string
+    {
+        return '';
+    }
+
     public function isXmlHttpRequest(): bool
     {
         return false;
