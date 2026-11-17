@@ -2,7 +2,7 @@
   "name": "pantosource/magento",
   "description": "PantoSource event tracking for Magento — canonical ingestion payloads, attribution, queue/retry, admin debug.",
   "type": "magento2-module",
-  "version": "1.2.9",
+  "version": "1.2.10",
   "license": "proprietary",
   "require": {
     "php": "~8.4.0||~8.5.0",

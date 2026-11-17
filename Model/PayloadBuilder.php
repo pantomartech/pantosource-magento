@@ -542,7 +542,7 @@ class PayloadBuilder
     {
         $ext = [
             'magento' => [
-                'module_version' => '1.2.9',
+                'module_version' => '1.2.10',
             ],
         ];
         $journeyId = $this->resolveJourneyId();
